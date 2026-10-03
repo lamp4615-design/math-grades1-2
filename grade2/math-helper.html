@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小小數學家｜二年級數感學習</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow">114 學年度學習扶助・二年級 · <a href="number-sense.html">⚡ 數感快手（限時特訓＋排行榜）</a></p>
+        <h1>小小數學家</h1>
+        <p>每天 5 分鐘，從生活中練習數感，慢慢變成解題高手！</p>
+      </div>
+      <div class="mascot" aria-hidden="true">🔢</div>
+    </div>
+  </header>
+
+  <main class="page">
+    <nav class="tabs" aria-label="功能選單">
+      <button class="tab active" data-tab="practice">數感練習</button>
+      <button class="tab" data-tab="helper">題目小老師</button>
+    </nav>
+
+    <section id="practice" class="panel active">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">選一個你想練習的主題</p>
+          <h2>今天想挑戰什麼？</h2>
+        </div>
+        <div class="score-card"><span id="streak">0</span><small>題答對</small></div>
+      </div>
+      <div id="topic-list" class="topic-grid"></div>
+      <div id="question-card" class="question-card hidden">
+        <div class="question-top">
+          <span id="topic-label" class="pill"></span>
+          <span id="question-count">第 1 題</span>
+        </div>
+        <h3 id="question-text"></h3>
+        <div id="answer-area"></div>
+        <div id="feedback" class="feedback" role="status"></div>
+        <div class="actions">
+          <button id="check-answer" class="button primary">送出答案</button>
+          <button id="next-question" class="button secondary hidden">下一題</button>
+          <button id="show-hint" class="text-button">給我一點提示</button>
+        </div>
+        <div id="hint" class="hint hidden"></div>
+      </div>
+    </section>
+
+    <section id="helper" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">不怕問問題</p>
+          <h2>題目小老師</h2>
+          <p class="section-intro">把不會的算式或題目打進來，我會用二年級能懂的方式一步一步說明。</p>
+        </div>
+        <div class="bot-face" aria-hidden="true">🤖</div>
+      </div>
+      <label for="problem-input">我不會這一題：</label>
+      <textarea id="problem-input" rows="3" placeholder="例如：27 + 35 怎麼算？或是 3 盒，每盒 4 顆糖，一共有幾顆？"></textarea>
+      <div class="helper-actions">
+        <button id="ask-helper" class="button primary">請小老師教我</button>
+        <button id="similar-problem" class="button secondary">出一道類似題</button>
+      </div>
+      <div id="helper-response" class="helper-response" aria-live="polite">
+        <div class="empty-state">你可以先輸入一題，沒有「問錯問題」這回事喔！</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>本網站為課堂練習原型，題目會在瀏覽器中即時產生，不會上傳學生資料。</footer>
+  <script src="app.js"></script>
+</body>
+</html>
