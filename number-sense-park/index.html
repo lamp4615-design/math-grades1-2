@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>數感遊樂園 - 國小限時心算練習</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#F4F7FC; --card:#FFFFFF; --ink:#22293B; --ink-soft:#5B6478; --line:#E3E8F2;
+    --coral:#B9381B; --coral-soft:#FFE6DE;
+    --sky:#145BB0; --sky-soft:#DEEBFF;
+    --grape:#6535B5; --grape-soft:#EEE6FF;
+    --meadow:#087442; --meadow-soft:#DBF7E9;
+    --teal:#087779; --teal-soft:#D9F3F1;
+    --gold:#8A5400; --gold-soft:#FFF1D6;
+    --bad:#B42318; --bad-soft:#FDE3E3;
+    --accent:var(--coral); --accent-soft:var(--coral-soft);
+    --radius:18px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--canvas); color:var(--ink); font-family:'Nunito',sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,.problem,.tv,.booth-top span,.btn,.answer-input,.fbtn,.namebar-input{ font-family:'Fredoka',sans-serif; }
+  .page{ max-width:780px; margin:0 auto; padding:28px 20px 48px; }
+
+  .hero{ position:relative; text-align:center; padding:20px 0 26px; overflow:hidden; }
+  .hero h1{ font-size:clamp(28px,5vw,38px); font-weight:600; margin:0; }
+  .hero p{ margin:8px 0 0; color:var(--ink-soft); font-size:15px; }
+  .blob{ position:absolute; border-radius:50%; opacity:.35; }
+  .blob1{ width:70px; height:70px; background:var(--coral); top:-6px; left:4%; }
+  .blob2{ width:44px; height:44px; background:var(--sky); top:18px; right:8%; }
+  .blob3{ width:32px; height:32px; background:var(--grape); bottom:2px; left:18%; }
+  .blob4{ width:52px; height:52px; background:var(--meadow); bottom:6px; right:20%; }
+  @media (prefers-reduced-motion: no-preference){
+    .blob{ animation:float 5s ease-in-out infinite; }
+    .blob2{ animation-delay:.6s; } .blob3{ animation-delay:1.1s; } .blob4{ animation-delay:1.6s; }
+  }
+  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+  @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+
+  .namebar{ display:flex; align-items:center; gap:10px; background:var(--card); border:2px solid var(--line); border-radius:999px; padding:8px 8px 8px 18px; margin-bottom:18px; }
+  .namebar-tight{ margin-bottom:10px; }
+  .namebar-label{ font-weight:800; font-size:13px; color:var(--ink-soft); white-space:nowrap; font-family:'Nunito',sans-serif; }
+  .namebar-input{ flex:1; border:none; background:transparent; font-size:16px; padding:8px; outline:none; min-width:0; color:var(--ink); }
+  .namebar-input:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; border-radius:8px; }
+  select.namebar-input{
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    cursor:pointer; padding-right:32px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6478' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 6px center; background-size:18px;
+  }
+  select.namebar-input option[value=""]{ color:var(--ink-soft); }
+  .input-error{ border-color:var(--bad) !important; }
+  .status-message{ min-height:1.5em; margin:-4px 4px 12px; color:var(--bad); font-size:13px; font-weight:800; }
+  .sr-only{ position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  @media (prefers-reduced-motion: no-preference){ .input-error{ animation:shake .3s; } }
+  @keyframes shake{ 0%,100%{ transform:translateX(0);} 25%{ transform:translateX(-4px);} 75%{ transform:translateX(4px);} }
+
+  .booths{ display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:12px; margin-bottom:20px; }
+  .booth{ background:var(--card); border:2px solid var(--line); border-radius:var(--radius); overflow:hidden; cursor:pointer; text-align:left; padding:0; transition:transform .15s ease, box-shadow .15s ease; }
+  .booth-top{ padding:12px 14px 8px; color:#fff; display:flex; align-items:center; gap:8px; }
+  .booth-top svg{ width:20px; height:20px; flex-shrink:0; }
+  .booth-top span{ font-size:14.5px; font-weight:600; }
+  .booth-body{ padding:8px 14px 14px; font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+  .booth[data-mode="mult"] .booth-top{ background:var(--coral); }
+  .booth[data-mode="addsub"] .booth-top{ background:var(--sky); }
+  .booth[data-mode="decomp"] .booth-top{ background:var(--grape); }
+  .booth[data-mode="factor"] .booth-top{ background:var(--meadow); }
+  .booth[data-mode="multiple"] .booth-top{ background:var(--teal); }
+  .booth.active{ transform:translateY(-4px); box-shadow:0 10px 22px rgba(34,41,59,.14); }
+  .booth[data-mode="mult"].active{ border-color:var(--coral); }
+  .booth[data-mode="addsub"].active{ border-color:var(--sky); }
+  .booth[data-mode="decomp"].active{ border-color:var(--grape); }
+  .booth[data-mode="factor"].active{ border-color:var(--meadow); }
+  .booth[data-mode="multiple"].active{ border-color:var(--teal); }
+  .booth:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  button:disabled,input:disabled,select:disabled{ cursor:not-allowed !important; opacity:.62; }
+  .booth:disabled{ transform:none; box-shadow:none; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-bottom:18px; align-items:center; justify-content:space-between; }
+  .pill-group{ display:flex; gap:6px; background:var(--card); border:2px solid var(--line); border-radius:999px; padding:4px; }
+  .pill{ border:none; background:transparent; padding:7px 14px; border-radius:999px; font-weight:700; font-size:13px; color:var(--ink-soft); cursor:pointer; font-family:'Nunito',sans-serif; }
+  .pill.active{ background:var(--ink); color:#fff; }
+  .sound-btn{ border:2px solid var(--line); background:var(--card); border-radius:999px; padding:7px 14px; font-weight:700; font-size:13px; color:var(--ink-soft); cursor:pointer; font-family:'Nunito',sans-serif; }
+  .sound-btn.on{ color:var(--ink); border-color:var(--gold); background:var(--gold-soft); }
+  .pill:focus-visible, .sound-btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+
+  .ticket{ position:relative; display:flex; background:var(--card); border:2px solid var(--line); border-radius:16px; margin:0 0 10px; }
+  .ticket::before,.ticket::after{ content:""; position:absolute; left:8px; right:8px; height:14px; background-image:radial-gradient(circle at 10px 50%, var(--canvas) 7px, transparent 7.3px); background-size:24px 14px; background-repeat:repeat-x; }
+  .ticket::before{ top:-7px; } .ticket::after{ bottom:-7px; }
+  .tseg{ flex:1; text-align:center; padding:16px 8px; }
+  .tseg + .tseg{ border-left:2px dashed var(--line); }
+  .tseg .tl{ font-size:12px; color:var(--ink-soft); font-weight:700; font-family:'Nunito',sans-serif; }
+  .tseg .tv{ font-size:26px; font-weight:600; margin-top:2px; }
+
+  .champion{ text-align:center; font-size:13px; color:var(--ink-soft); margin:0 0 16px; font-weight:700; font-family:'Nunito',sans-serif; }
+  .champion strong{ color:var(--ink); }
+
+  .stage{ background:var(--accent-soft); border:2px solid var(--accent); border-radius:24px; padding:32px 20px; text-align:center; min-height:170px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; transition:background .2s ease, border-color .2s ease; }
+  .problem{ font-size:clamp(24px,6.5vw,34px); font-weight:600; }
+  .answer-input{ width:160px; text-align:center; font-size:22px; padding:10px; border-radius:12px; border:2px solid var(--line); background:#fff; }
+  .answer-input:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  .fgrid{ display:none; grid-template-columns:repeat(4,1fr); gap:8px; width:100%; max-width:340px; }
+  .fbtn{ padding:12px 0; border-radius:12px; border:2px solid var(--line); background:#fff; font-size:16px; font-weight:600; cursor:pointer; }
+  .fbtn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  .fbtn.selected{ border-color:var(--meadow); background:var(--meadow-soft); }
+  .fbtn.correct{ border-color:var(--meadow); background:var(--meadow); color:#fff; }
+  .fbtn.incorrect{ border-color:var(--bad); background:var(--bad-soft); color:var(--bad); }
+
+  @media (prefers-reduced-motion: no-preference){ .flash-good{ animation:flashG .5s ease; } .flash-bad{ animation:flashB .5s ease; } }
+  @keyframes flashG{ 0%{ box-shadow:0 0 0 6px var(--meadow-soft) inset; } 100%{ box-shadow:0 0 0 0 transparent inset; } }
+  @keyframes flashB{ 0%{ box-shadow:0 0 0 6px var(--bad-soft) inset; } 100%{ box-shadow:0 0 0 0 transparent inset; } }
+
+  .actions{ display:flex; gap:10px; margin-top:16px; }
+  .btn{ flex:1; border-radius:999px; padding:14px; font-size:16px; font-weight:600; cursor:pointer; border:2px solid var(--line); background:#fff; color:var(--ink); }
+  .btn:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .result{ display:none; margin-top:18px; background:var(--gold-soft); border:2px solid var(--gold); border-radius:16px; padding:18px; text-align:center; }
+  .result p{ margin:0 0 6px; }
+  .result p:last-child{ margin-bottom:0; }
+  .result .rmsg{ font-family:'Fredoka',sans-serif; font-size:17px; font-weight:600; }
+  .result .rrecord{ font-size:14px; font-weight:700; color:var(--ink); }
+  .result .rstat{ font-size:13.5px; color:var(--ink-soft); }
+  .result .rrank{ font-size:14px; font-weight:800; color:var(--ink); margin-top:8px; padding-top:8px; border-top:2px dashed var(--gold); font-family:'Nunito',sans-serif; }
+  .result .rrank:empty{ margin:0; padding:0; border:none; }
+  .badge-new{ display:inline-block; background:var(--gold); color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; margin-right:6px; font-family:'Nunito',sans-serif; vertical-align:middle; }
+
+  footer{ margin-top:36px; padding-top:20px; border-top:2px dashed var(--line); font-size:13px; color:var(--ink-soft); line-height:1.8; }
+  footer strong{ color:var(--ink); }
+  .reset-link{ background:none; border:none; padding:0; margin-top:10px; color:var(--ink-soft); text-decoration:underline; font-size:12.5px; cursor:pointer; font-family:'Nunito',sans-serif; display:inline-block; }
+  .reset-link:focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+  #storageStatus,#sheetStatus{ font-weight:700; }
+  #storageStatus.shared{ color:var(--meadow); }
+  #storageStatus.local{ color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div><div class="blob blob4"></div>
+    <h1>數感遊樂園</h1>
+    <p>國小限時心算大挑戰・乘法・加減・拆解・因數・倍數</p>
+  </div>
+
+  <div class="namebar namebar-tight">
+    <label for="classInput" class="namebar-label">班級</label>
+    <select id="classInput" class="namebar-input">
+      <option value="" disabled selected>請選擇班級</option>
+      <option value="一甲">一甲</option>
+      <option value="一乙">一乙</option>
+      <option value="二甲">二甲</option>
+      <option value="二乙">二乙</option>
+      <option value="三甲">三甲</option>
+      <option value="三乙">三乙</option>
+      <option value="四甲">四甲</option>
+      <option value="四乙">四乙</option>
+      <option value="五甲">五甲</option>
+      <option value="五乙">五乙</option>
+      <option value="六甲">六甲</option>
+      <option value="六乙">六乙</option>
+    </select>
+  </div>
+  <div class="namebar">
+    <label for="nicknameInput" class="namebar-label">你的姓名／代號</label>
+    <input id="nicknameInput" class="namebar-input" type="text" maxlength="12" placeholder="輸入姓名後才能開始挑戰">
+    <select id="nicknameSelect" class="namebar-input" aria-label="選擇姓名或代號" style="display:none;" disabled>
+      <option value="" disabled selected>請先選擇班級</option>
+    </select>
+  </div>
+  <p id="formStatus" class="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
+
+  <div class="booths" id="booths" role="group" aria-label="選擇練習模式">
+    <button class="booth active" data-mode="mult" aria-pressed="true">
+      <div class="booth-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        <span>乘法快手</span>
+      </div>
+      <div class="booth-body">兩位數 × 一位數限時心算</div>
+    </button>
+    <button class="booth" data-mode="addsub" aria-pressed="false">
+      <div class="booth-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 9h6M17 9h2M8 15v-6M14 15h6"/></svg>
+        <span>加減挑戰</span>
+      </div>
+      <div class="booth-body">加減法限時運算反應力</div>
+    </button>
+    <button class="booth" data-mode="decomp" aria-pressed="false">
+      <div class="booth-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/></svg>
+        <span>拆解特攻</span>
+      </div>
+      <div class="booth-body">湊十・湊百・湊千限時心算</div>
+    </button>
+    <button class="booth" data-mode="factor" aria-pressed="false">
+      <div class="booth-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M20 20l-5.5-5.5"/></svg>
+        <span>因數獵人</span>
+      </div>
+      <div class="booth-body">快速找出某數的所有因數</div>
+    </button>
+    <button class="booth" data-mode="multiple" aria-pressed="false">
+      <div class="booth-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="6" height="8" rx="1.5"/><rect x="10.5" y="8" width="6" height="12" rx="1.5"/><rect x="18" y="4" width="6" height="16" rx="1.5"/></svg>
+        <span>倍數達人</span>
+      </div>
+      <div class="booth-body">快速找出某數的所有倍數</div>
+    </button>
+  </div>
+
+  <div class="controls">
+    <div class="pill-group" id="diffGroup" role="group" aria-label="選擇難度">
+      <button class="pill active" data-diff="easy" aria-pressed="true">簡單</button>
+      <button class="pill" data-diff="medium" aria-pressed="false">中等</button>
+      <button class="pill" data-diff="hard" aria-pressed="false">困難</button>
+    </div>
+    <div class="pill-group" id="timeGroup" role="group" aria-label="選擇挑戰時間">
+      <button class="pill" data-time="30" aria-pressed="false">30秒</button>
+      <button class="pill active" data-time="60" aria-pressed="true">60秒</button>
+      <button class="pill" data-time="90" aria-pressed="false">90秒</button>
+    </div>
+    <button class="sound-btn on" id="soundBtn" aria-pressed="true">聲音: 開</button>
+  </div>
+
+  <div class="ticket" aria-label="本回合成績資訊">
+    <div class="tseg"><div class="tl">分數</div><div class="tv" id="scoreOut">0</div></div>
+    <div class="tseg"><div class="tl">連續答對</div><div class="tv" id="streakOut">0</div></div>
+    <div class="tseg"><div class="tl">剩餘秒數</div><div class="tv" id="timeOut">60</div></div>
+  </div>
+
+  <div class="champion" id="championBanner"></div>
+
+  <div class="stage" id="stage">
+    <div class="problem" id="problemDisplay" role="status" aria-live="polite" aria-atomic="true">按下方「開始挑戰」出題</div>
+    <input class="answer-input" id="answerInput" type="number" inputmode="numeric" autocomplete="off" placeholder="輸入答案" aria-label="輸入答案" style="display:none;">
+    <div class="fgrid" id="factorGrid"></div>
+  </div>
+
+  <p id="answerFeedback" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></p>
+
+  <div class="actions">
+    <button class="btn" id="startBtn">開始挑戰</button>
+    <button class="btn btn-primary" id="submitBtn" type="button" disabled>確認答案</button>
+  </div>
+
+  <div class="result" id="resultBox" role="region" aria-label="挑戰結果">
+    <p class="rmsg" id="resultMsg"></p>
+    <p class="rrecord" id="resultRecord"></p>
+    <p class="rstat" id="resultStat"></p>
+    <p class="rrank" id="resultRank"></p>
+  </div>
+
+  <footer>
+    <strong>使用小提示</strong><br>
+  <span>個資提醒：可使用暱稱或代號；班級、姓名與成績是否上傳，請依學校規範及家長告知方式設定。</span><br>
+    適合對象:乘法快手、加減挑戰適合中低年級;拆解特攻、因數獵人、倍數達人適合中高年級(五年級後接觸因數與倍數概念)。<br>
+    課堂用法:投影到大螢幕讓全班搶答,或發放平板 / 手機個人限時練習,每位學生開始前先輸入自己的暱稱。<br>
+    小提醒:每個「模式 × 難度 × 時間長度」都各自累積最佳紀錄,鼓勵孩子挑戰紀錄保持人,而非彼此比較。<br>
+    <span id="storageStatus"></span><br>
+    <span id="sheetStatus"></span><br>
+    <button class="reset-link" id="resetBtn" type="button">清除最佳紀錄</button>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var state = { mode:'mult', diff:'easy', roundLen:60, score:0, streak:0, bestStreak:0, timeLeft:60, timer:null, nextQuestionTimer:null, running:false, answerLocked:false, current:null, roundConfig:null, soundOn:true, nickname:'', className:'' };
+
+  // ===== Google 試算表設定 =====
+  // 部署 Apps Script「網頁應用程式」後,把網址(通常以 /exec 結尾)貼在下面雙引號中間
+  var SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby8XKTeewKRHqni4w4B3zsOjkxCQreQVT25vLZI96J3fx9sLXDuJtstKy5uw-ww0zlDeg/exec';
+  var MODE_LABELS = { mult:'乘法快手', addsub:'加減挑戰', decomp:'拆解特攻', factor:'因數獵人', multiple:'倍數達人' };
+  var DIFF_LABELS = { easy:'簡單', medium:'中等', hard:'困難' };
+
+  var STORE_KEY_BOARD = 'mathPlaygroundBoard_v1';
+  var STORE_KEY_NAME = 'mathPlaygroundNickname_v1';
+  var STORE_KEY_CLASS = 'mathPlaygroundClass_v1';
+  var memoryBoard = {};
+
+  var booths = document.querySelectorAll('.booth');
+  var diffPills = document.querySelectorAll('#diffGroup .pill');
+  var timePills = document.querySelectorAll('#timeGroup .pill');
+  var soundBtn = document.getElementById('soundBtn');
+  var classInput = document.getElementById('classInput');
+  var nicknameInput = document.getElementById('nicknameInput');
+  var nicknameSelect = document.getElementById('nicknameSelect');
+  var rosterByClass = null; // 從 Google 試算表載入的 { 班級: [姓名, ...] }
+  var championBanner = document.getElementById('championBanner');
+  var stage = document.getElementById('stage');
+  var problemDisplay = document.getElementById('problemDisplay');
+  var answerInput = document.getElementById('answerInput');
+  var factorGrid = document.getElementById('factorGrid');
+  var startBtn = document.getElementById('startBtn');
+  var submitBtn = document.getElementById('submitBtn');
+  var scoreOut = document.getElementById('scoreOut');
+  var streakOut = document.getElementById('streakOut');
+  var timeOut = document.getElementById('timeOut');
+  var resultBox = document.getElementById('resultBox');
+  var resultMsg = document.getElementById('resultMsg');
+  var resultRecord = document.getElementById('resultRecord');
+  var resultStat = document.getElementById('resultStat');
+  var resultRank = document.getElementById('resultRank');
+  var resetBtn = document.getElementById('resetBtn');
+  var storageStatus = document.getElementById('storageStatus');
+  var sheetStatus = document.getElementById('sheetStatus');
+  var formStatus = document.getElementById('formStatus');
+  var answerFeedback = document.getElementById('answerFeedback');
+
+  var stageColors = {
+    mult:['--coral-soft','--coral'], addsub:['--sky-soft','--sky'],
+    decomp:['--grape-soft','--grape'], factor:['--meadow-soft','--meadow'],
+    multiple:['--teal-soft','--teal']
+  };
+
+  function applyStageColor(){
+    var c = stageColors[state.mode];
+    stage.style.setProperty('--accent-soft', 'var('+c[0]+')');
+    stage.style.setProperty('--accent', 'var('+c[1]+')');
+    submitBtn.style.background = 'var('+c[1]+')';
+    submitBtn.style.borderColor = 'var('+c[1]+')';
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function hasArtifactStorage(){
+    return typeof window !== 'undefined' && !!window.storage && typeof window.storage.get === 'function';
+  }
+
+  async function loadBoard(){
+    if(hasArtifactStorage()){
+      try{
+        var res = await window.storage.get(STORE_KEY_BOARD, true);
+        if(res && res.value) return JSON.parse(res.value);
+      }catch(e){ /* not published yet, or key not set - fall through */ }
+    }
+    try{ var raw = localStorage.getItem(STORE_KEY_BOARD); return raw ? JSON.parse(raw) : {}; }
+    catch(e){ return memoryBoard; }
+  }
+  async function saveBoard(board){
+    if(hasArtifactStorage()){
+      try{ await window.storage.set(STORE_KEY_BOARD, JSON.stringify(board), true); return; }
+      catch(e){ /* not published yet - fall through to local */ }
+    }
+    try{ localStorage.setItem(STORE_KEY_BOARD, JSON.stringify(board)); }
+    catch(e){ memoryBoard = board; }
+  }
+  async function clearBoard(){
+    if(hasArtifactStorage()){
+      try{ await window.storage.delete(STORE_KEY_BOARD, true); }catch(e){}
+    }
+    try{ localStorage.removeItem(STORE_KEY_BOARD); }catch(e){}
+    memoryBoard = {};
+  }
+  function loadNickname(){
+    try{ return localStorage.getItem(STORE_KEY_NAME) || ''; }catch(e){ return ''; }
+  }
+  function saveNickname(n){
+    try{ localStorage.setItem(STORE_KEY_NAME, n); }catch(e){}
+  }
+  function loadClassName(){
+    try{ return localStorage.getItem(STORE_KEY_CLASS) || ''; }catch(e){ return ''; }
+  }
+  function saveClassName(c){
+    try{ localStorage.setItem(STORE_KEY_CLASS, c); }catch(e){}
+  }
+
+  // 從 Google 試算表載入全校名單，讓班級/姓名改用下拉選單對應
+  async function loadRoster(){
+    if(!sheetConfigured()) return;
+    try{
+      var sep = SHEET_API_URL.indexOf('?') === -1 ? '?' : '&';
+      var res = await fetch(SHEET_API_URL + sep + 'action=roster');
+      if(!res.ok) throw new Error('名單服務回應 ' + res.status);
+      var data = await res.json();
+      if(!data || !data.ok || !Array.isArray(data.classes) || !data.classes.length || !data.roster){
+        sheetStatus.textContent = '為保護個資，不提供全校名單；請輸入暱稱或代號。成績送出時會連線排行榜。';
+        sheetStatus.className = 'local';
+        return;
+      }
+      rosterByClass = data.roster;
+      var savedClass = classInput.value;
+      classInput.innerHTML = '';
+      var placeholder = document.createElement('option');
+      placeholder.value = ''; placeholder.disabled = true; placeholder.textContent = '請選擇班級';
+      classInput.appendChild(placeholder);
+      data.classes.forEach(function(cls){
+        var opt = document.createElement('option');
+        opt.value = cls; opt.textContent = cls;
+        classInput.appendChild(opt);
+      });
+      nicknameInput.style.display = 'none';
+      nicknameSelect.style.display = '';
+      nicknameSelect.disabled = false;
+      if(savedClass && rosterByClass[savedClass]){
+        classInput.value = savedClass;
+        populateNicknameOptions(savedClass, loadNickname());
+      } else {
+        placeholder.selected = true;
+      }
+      classInput.addEventListener('change', function(){
+        populateNicknameOptions(classInput.value, '');
+        classInput.removeAttribute('aria-invalid');
+        formStatus.textContent = '';
+      });
+      sheetStatus.textContent = '名單載入成功；排行榜服務仍會於挑戰結束時實際測試。';
+      sheetStatus.className = 'shared';
+    }catch(e){
+      sheetStatus.textContent = '名單載入失敗，可手動輸入姓名或代號；排行榜服務會於送出時另行測試。';
+      sheetStatus.className = 'local';
+    }
+  }
+
+  function populateNicknameOptions(cls, preselect){
+    if(!rosterByClass) return;
+    var names = rosterByClass[cls] || [];
+    nicknameSelect.innerHTML = '';
+    var ph = document.createElement('option');
+    ph.value = ''; ph.disabled = true;
+    ph.textContent = names.length ? '請選擇姓名' : '此班級尚無名單';
+    ph.selected = true;
+    nicknameSelect.appendChild(ph);
+    names.forEach(function(n){
+      var opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      if(n === preselect) opt.selected = true;
+      nicknameSelect.appendChild(opt);
+    });
+    nicknameSelect.disabled = state.running || names.length === 0;
+  }
+
+  function activeNicknameEl(){ return rosterByClass ? nicknameSelect : nicknameInput; }
+
+  function currentKey(config){
+    var c = config || state;
+    var cls = c.className || classInput.value || state.className || '未選班級';
+    return encodeURIComponent(cls) + '_' + c.mode + '_' + c.diff + '_' + c.roundLen;
+  }
+
+  function setSetupEnabled(enabled){
+    booths.forEach(function(el){ el.disabled = !enabled; el.setAttribute('aria-disabled', enabled ? 'false' : 'true'); });
+    diffPills.forEach(function(el){ el.disabled = !enabled; el.setAttribute('aria-disabled', enabled ? 'false' : 'true'); });
+    timePills.forEach(function(el){ el.disabled = !enabled; el.setAttribute('aria-disabled', enabled ? 'false' : 'true'); });
+    classInput.disabled = !enabled;
+    nicknameInput.disabled = !enabled;
+    nicknameSelect.disabled = !enabled || (!!rosterByClass && !(rosterByClass[classInput.value] || []).length);
+    resetBtn.disabled = !enabled;
+  }
+
+  function showFormError(message, element){
+    formStatus.textContent = message;
+    if(element){
+      element.setAttribute('aria-invalid','true');
+      element.classList.add('input-error');
+      element.focus();
+      window.setTimeout(function(){ element.classList.remove('input-error'); }, 1200);
+    }
+  }
+
+  function updateStorageStatus(){
+    if(hasArtifactStorage()){
+      storageStatus.textContent = '紀錄狀態:目前環境提供共用儲存功能；實際共享範圍依發布與儲存設定而定。';
+      storageStatus.className = 'shared';
+    } else {
+      storageStatus.textContent = '紀錄狀態:最佳紀錄儲存在這台裝置／瀏覽器；清除瀏覽資料可能會移除紀錄。';
+      storageStatus.className = 'local';
+    }
+  }
+
+  function sheetConfigured(){
+    return typeof SHEET_API_URL === 'string' && SHEET_API_URL.indexOf('https://') === 0;
+  }
+  function updateSheetStatus(){
+    if(sheetConfigured()){
+      sheetStatus.textContent = '排行榜服務網址已設定；是否可用仍須以名單載入或成績提交結果確認。';
+      sheetStatus.className = 'local';
+    } else {
+      sheetStatus.textContent = '排行榜服務尚未設定；網頁仍可進行本機練習。';
+      sheetStatus.className = 'local';
+    }
+  }
+  async function submitToSheetAndGetRank(payload){
+    if(!sheetConfigured()) return { ok:false, error:'not_configured' };
+    try{
+      var res = await fetch(SHEET_API_URL, { method:'POST', body: JSON.stringify(payload) });
+      if(!res.ok) return { ok:false, error:'HTTP ' + res.status };
+      return await res.json();
+    }catch(err){
+      return { ok:false, error:String(err) };
+    }
+  }
+
+  async function updateChampionBanner(){
+    var board = await loadBoard();
+    var record = board[currentKey()];
+    if(record){
+      championBanner.innerHTML = '本關卡紀錄保持人:<strong>' + escapeHtml(record.name) + '</strong>・' + record.score + ' 分';
+    } else {
+      championBanner.textContent = '這個關卡還沒有人挑戰過,搶頭香立下第一個紀錄吧!';
+    }
+  }
+
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function factorsOf(n){ var f=[]; for(var i=1;i<=n;i++){ if(n%i===0) f.push(i); } return f; }
+
+  function genMult(){
+    var ranges = { easy:{a:[10,30], b:[1,5]}, medium:{a:[10,60], b:[2,8]}, hard:{a:[40,99], b:[6,9]} };
+    var r = ranges[state.diff];
+    var a = rand(r.a[0], r.a[1]), b = rand(r.b[0], r.b[1]);
+    return { display: a+' × '+b, answer: a*b };
+  }
+  function genAddSub(){
+    var maxes = { easy:20, medium:100, hard:1000 };
+    var max = maxes[state.diff];
+    var isAdd = Math.random() < 0.5;
+    var symbol = isAdd ? '+' : '−';
+    var a,b;
+    if(isAdd){ a = rand(1,max-1); b = rand(1,max-a); }
+    else { a = rand(1,max); b = rand(0,a); }
+    return { display: a+' '+symbol+' '+b, answer: isAdd ? a+b : a-b };
+  }
+  function genDecomp(){
+    if(state.diff==='easy'){ var x = rand(1,9); return { display: x+' + __ = 10', answer: 10-x }; }
+    if(state.diff==='medium'){ var y = rand(1,99); return { display: y+' + __ = 100', answer: 100-y }; }
+    var z = rand(1,999); return { display: z+' + __ = 1000', answer: 1000-z };
+  }
+  function genFactor(){
+    var ranges = { easy:[10,20], medium:[21,50], hard:[51,100] };
+    var r = ranges[state.diff];
+    var target = rand(r[0], r[1]);
+    var trueFactors = factorsOf(target);
+    var shuffled = trueFactors.slice().sort(function(){ return Math.random()-0.5; });
+    var picked = shuffled.slice(0, Math.min(5, trueFactors.length));
+    var candidates = picked.slice();
+    var attempts = 0;
+    while(candidates.length < 8 && attempts < 300){
+      attempts++;
+      var d = rand(2, Math.max(2, target-1));
+      if(candidates.indexOf(d) === -1) candidates.push(d);
+    }
+    candidates.sort(function(){ return Math.random()-0.5; });
+    var correctSet = candidates.filter(function(c){ return target % c === 0; });
+    return { target: target, candidates: candidates, correctSet: correctSet };
+  }
+  function genMultiple(){
+    var ranges = { easy:{base:[2,5], max:30}, medium:{base:[3,9], max:60}, hard:{base:[6,12], max:100} };
+    var r = ranges[state.diff];
+    var base = rand(r.base[0], r.base[1]);
+    var trueMultiples = [];
+    for(var i=base; i<=r.max; i+=base){ trueMultiples.push(i); }
+    var shuffled = trueMultiples.slice().sort(function(){ return Math.random()-0.5; });
+    var picked = shuffled.slice(0, Math.min(5, trueMultiples.length));
+    var candidates = picked.slice();
+    var attempts = 0;
+    while(candidates.length < 8 && attempts < 300){
+      attempts++;
+      var d = rand(1, r.max);
+      if(candidates.indexOf(d) === -1) candidates.push(d);
+    }
+    candidates.sort(function(){ return Math.random()-0.5; });
+    var correctSet = candidates.filter(function(c){ return c % base === 0; });
+    return { base: base, candidates: candidates, correctSet: correctSet };
+  }
+
+  var audioCtx;
+  function beep(kind){
+    if(!state.soundOn) return;
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination); o.type = 'sine';
+      var now = audioCtx.currentTime;
+      if(kind==='good'){
+        o.frequency.setValueAtTime(660, now);
+        o.frequency.exponentialRampToValueAtTime(990, now+0.12);
+        g.gain.setValueAtTime(0.15, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now+0.18);
+        o.start(now); o.stop(now+0.2);
+      } else {
+        o.frequency.setValueAtTime(300, now);
+        o.frequency.exponentialRampToValueAtTime(170, now+0.15);
+        g.gain.setValueAtTime(0.12, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now+0.2);
+        o.start(now); o.stop(now+0.22);
+      }
+    }catch(e){}
+  }
+
+  function flash(ok){
+    stage.classList.remove('flash-good','flash-bad');
+    void stage.offsetWidth;
+    stage.classList.add(ok ? 'flash-good' : 'flash-bad');
+    beep(ok ? 'good' : 'bad');
+  }
+
+  function updateStats(){ scoreOut.textContent = state.score; streakOut.textContent = state.streak; }
+
+  function isGridMode(){ return state.mode==='factor' || state.mode==='multiple'; }
+
+  function showProblem(){
+    if(!state.running) return;
+    state.answerLocked = false;
+    submitBtn.disabled = false;
+    if(isGridMode()){
+      answerInput.style.display = 'none';
+      factorGrid.style.display = 'grid';
+      submitBtn.textContent = state.mode==='factor' ? '確認因數' : '確認倍數';
+      var p = state.mode==='factor' ? genFactor() : genMultiple();
+      state.current = p;
+      problemDisplay.textContent = state.mode==='factor' ? ('請選出下列選項中的 ' + p.target + ' 的因數') : ('請選出下列選項中的 ' + p.base + ' 的倍數');
+      factorGrid.innerHTML = '';
+      p.candidates.forEach(function(c){
+        var b = document.createElement('button');
+        b.className = 'fbtn'; b.type = 'button'; b.textContent = c;
+        b.setAttribute('aria-pressed','false');
+        b.onclick = function(){
+          if(state.running && !state.answerLocked){
+            answerFeedback.textContent = '';
+            var selected = b.classList.toggle('selected');
+            b.setAttribute('aria-pressed', selected ? 'true' : 'false');
+          }
+        };
+        factorGrid.appendChild(b);
+      });
+      var firstOption = factorGrid.querySelector('.fbtn');
+      if(firstOption) firstOption.focus();
+    } else {
+      factorGrid.style.display = 'none';
+      answerInput.style.display = 'block';
+      submitBtn.textContent = '確認答案';
+      var gen = state.mode==='mult' ? genMult : state.mode==='addsub' ? genAddSub : genDecomp;
+      var p2 = gen();
+      state.current = p2;
+      problemDisplay.textContent = p2.display;
+      answerInput.value = '';
+      answerInput.focus();
+    }
+  }
+
+  function checkAnswer(){
+    if(!state.running || state.answerLocked) return;
+    if(!isGridMode() && answerInput.value.trim() === ''){
+      answerFeedback.textContent = '請先輸入答案，再按確認答案。';
+      answerInput.focus();
+      return;
+    }
+    state.answerLocked = true;
+    submitBtn.disabled = true;
+    if(isGridMode()){
+      var correctSet = state.current.correctSet;
+      var allBtns = factorGrid.querySelectorAll('.fbtn');
+      var correctCount=0, wrongCount=0;
+      allBtns.forEach(function(b){
+        b.disabled = true;
+        var val = parseInt(b.textContent,10);
+        var isRight = correctSet.indexOf(val) !== -1;
+        var isSelected = b.classList.contains('selected');
+        if(isRight && isSelected){ b.classList.add('correct'); correctCount++; }
+        else if(!isRight && isSelected){ b.classList.add('incorrect'); wrongCount++; }
+        else if(isRight && !isSelected){ b.classList.add('incorrect'); }
+      });
+      var net = correctCount - wrongCount;
+      state.score += Math.max(0, net);
+      var fullyCorrect = wrongCount===0 && correctCount===correctSet.length && correctSet.length>0;
+      if(fullyCorrect){ state.streak++; flash(true); }
+      else { state.streak = 0; flash(false); }
+      answerFeedback.textContent = fullyCorrect
+        ? '答對了！正確選項是：' + correctSet.join('、')
+        : '再檢查一次。正確選項是：' + correctSet.join('、');
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+      updateStats();
+      state.nextQuestionTimer = window.setTimeout(function(){ if(state.running) showProblem(); }, 900);
+    } else {
+      var val2 = Number(answerInput.value);
+      var isCorrect = val2 === state.current.answer;
+      if(isCorrect){ state.score++; state.streak++; flash(true); }
+      else { state.streak = 0; flash(false); }
+      answerFeedback.textContent = isCorrect
+        ? '答對了！答案是 ' + state.current.answer + '。'
+        : '再接再厲！正確答案是 ' + state.current.answer + '。';
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+      updateStats();
+      state.nextQuestionTimer = window.setTimeout(function(){ if(state.running) showProblem(); }, 650);
+    }
+  }
+
+  var GOOD_MSGS = ['太厲害了,你是這一關的新紀錄保持人!', '超強表現,大家等著被你超越!', '漂亮,寫下新的紀錄!'];
+  var TIE_MSGS = ['追平紀錄,只差一點點就能反超!', '打成平手了,再一次就能贏!'];
+  var TRY_MSGS = ['再接再厲,下一次一定更順手!', '持續練習,紀錄很快就會被你刷新!', '不錯的嘗試,再挑戰一次看看!'];
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function startGame(){
+    if(startBtn.disabled) return;
+    if(state.running && !window.confirm('目前挑戰尚未結束，確定要放棄本回合並重新開始嗎？')) return;
+    var cls = classInput.value.trim();
+    var nameEl = activeNicknameEl();
+    var name = nameEl.value.trim();
+    if(!cls){
+      showFormError('請先選擇班級。', classInput);
+      return;
+    }
+    if(!name){
+      showFormError(rosterByClass ? '請先選擇姓名。' : '請輸入姓名或暱稱。', nameEl);
+      return;
+    }
+    classInput.removeAttribute('aria-invalid');
+    nameEl.removeAttribute('aria-invalid');
+    formStatus.textContent = '';
+    state.className = cls;
+    state.nickname = name;
+    saveClassName(cls);
+    saveNickname(name);
+    answerFeedback.textContent = '';
+    if(state.nextQuestionTimer){ clearTimeout(state.nextQuestionTimer); state.nextQuestionTimer = null; }
+    state.roundConfig = { mode:state.mode, diff:state.diff, roundLen:state.roundLen, className:cls };
+    state.score=0; state.streak=0; state.bestStreak=0; state.timeLeft=state.roundConfig.roundLen; state.running=true; state.answerLocked=false;
+    setSetupEnabled(false);
+    submitBtn.disabled = false;
+    startBtn.textContent = '重新開始';
+    updateStats();
+    timeOut.textContent = state.timeLeft;
+    resultBox.style.display = 'none';
+    resultRank.textContent = '';
+    showProblem();
+    clearInterval(state.timer);
+    state.timer = setInterval(function(){
+      state.timeLeft--;
+      timeOut.textContent = state.timeLeft;
+      if(state.timeLeft<=0){ endGame(); }
+    },1000);
+  }
+
+  async function endGame(){
+    if(!state.running) return;
+    state.running = false;
+    clearInterval(state.timer);
+    if(state.nextQuestionTimer){ clearTimeout(state.nextQuestionTimer); state.nextQuestionTimer = null; }
+    var run = state.roundConfig || { mode:state.mode, diff:state.diff, roundLen:state.roundLen };
+    var finalScore = state.score;
+    var finalBestStreak = state.bestStreak;
+    var finalNickname = state.nickname;
+    var finalClassName = state.className;
+    startBtn.disabled = true;
+    submitBtn.disabled = true;
+    state.answerLocked = true;
+    answerInput.style.display = 'none';
+    factorGrid.style.display = 'none';
+    problemDisplay.textContent = '時間到!';
+    resultBox.style.display = 'block';
+    resultMsg.textContent = '結算中…';
+    resultRecord.textContent = '';
+    resultRank.textContent = '';
+
+    var key = currentKey(run);
+    var board = await loadBoard();
+    var record = board[key];
+    var isNewRecord = !record || finalScore > record.score;
+    var isTie = record && finalScore === record.score;
+
+    if(isNewRecord){
+      board[key] = { name: finalNickname, score: finalScore };
+      await saveBoard(board);
+      resultMsg.innerHTML = '<span class="badge-new">新紀錄</span>' + pick(GOOD_MSGS);
+      resultRecord.textContent = finalNickname + ' 創下本關卡新紀錄:' + finalScore + ' 分!';
+    } else if(isTie){
+      resultMsg.textContent = pick(TIE_MSGS);
+      resultRecord.textContent = '目前紀錄保持人:' + record.name + '(' + record.score + ' 分)・你追平了!';
+    } else {
+      var gap = record.score - finalScore;
+      resultMsg.textContent = pick(TRY_MSGS);
+      resultRecord.textContent = '目前紀錄保持人:' + record.name + '(' + record.score + ' 分)・只差 ' + gap + ' 分就能超越!';
+    }
+    resultStat.textContent = finalNickname + ' 本回合分數:' + finalScore + ' 分・最高連續答對:' + finalBestStreak + ' 題';
+    updateChampionBanner();
+
+    if(sheetConfigured()){
+      resultRank.textContent = '排行榜計算中…';
+      var modeLabel = MODE_LABELS[run.mode] || run.mode;
+      var diffLabel = DIFF_LABELS[run.diff] || run.diff;
+      var sheetResult = await submitToSheetAndGetRank({
+        className: finalClassName,
+        nickname: finalNickname,
+        mode: modeLabel,
+        diff: diffLabel,
+        seconds: run.roundLen,
+        score: finalScore,
+        bestStreak: finalBestStreak
+      });
+      if(sheetResult && sheetResult.ok){
+        resultRank.textContent = '排行榜:「' + modeLabel + '・' + diffLabel + '・' + run.roundLen + ' 秒」關卡中,目前排名第 ' + sheetResult.rank + ' 名(共 ' + sheetResult.total + ' 人挑戰過)!';
+      } else {
+        resultRank.textContent = '排行榜暫時無法連線,分數已保留在本機紀錄中。';
+      }
+    }
+    startBtn.disabled = false;
+    setSetupEnabled(true);
+  }
+
+  booths.forEach(function(b){
+    b.addEventListener('click', function(){
+      if(state.running) return;
+      booths.forEach(function(x){ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+      b.classList.add('active'); b.setAttribute('aria-pressed','true');
+      state.mode = b.getAttribute('data-mode');
+      applyStageColor();
+      updateChampionBanner();
+      if(state.running) showProblem();
+    });
+  });
+  diffPills.forEach(function(b){
+    b.addEventListener('click', function(){
+      if(state.running) return;
+      diffPills.forEach(function(x){ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+      b.classList.add('active'); b.setAttribute('aria-pressed','true');
+      state.diff = b.getAttribute('data-diff');
+      updateChampionBanner();
+      if(state.running) showProblem();
+    });
+  });
+  timePills.forEach(function(b){
+    b.addEventListener('click', function(){
+      if(state.running) return;
+      timePills.forEach(function(x){ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+      b.classList.add('active'); b.setAttribute('aria-pressed','true');
+      state.roundLen = parseInt(b.getAttribute('data-time'),10);
+      updateChampionBanner();
+      if(!state.running){ state.timeLeft = state.roundLen; timeOut.textContent = state.timeLeft; }
+    });
+  });
+  soundBtn.addEventListener('click', function(){
+    state.soundOn = !state.soundOn;
+    soundBtn.textContent = '聲音: ' + (state.soundOn ? '開' : '關');
+    soundBtn.classList.toggle('on', state.soundOn);
+    soundBtn.setAttribute('aria-pressed', state.soundOn ? 'true' : 'false');
+  });
+  resetBtn.addEventListener('click', async function(){
+    var scopeNote = hasArtifactStorage() ? '(可能影響共用此發布環境的其他使用者)' : '(清除此瀏覽器儲存的紀錄)';
+    if(window.confirm('確定要清除所有模式的最佳紀錄嗎?此動作無法復原。' + scopeNote)){
+      await clearBoard();
+      updateChampionBanner();
+    }
+  });
+
+  startBtn.addEventListener('click', startGame);
+  submitBtn.addEventListener('click', checkAnswer);
+  answerInput.addEventListener('input', function(){ answerFeedback.textContent = ''; });
+  nicknameInput.addEventListener('input', function(){ nicknameInput.removeAttribute('aria-invalid'); formStatus.textContent = ''; });
+  nicknameSelect.addEventListener('change', function(){ nicknameSelect.removeAttribute('aria-invalid'); formStatus.textContent = ''; });
+  classInput.addEventListener('change', function(){ classInput.removeAttribute('aria-invalid'); formStatus.textContent = ''; });
+  answerInput.addEventListener('keydown', function(e){ if(e.key==='Enter') checkAnswer(); });
+
+  classInput.value = loadClassName();
+  nicknameInput.value = loadNickname();
+  loadRoster();
+  applyStageColor();
+  factorGrid.style.display = 'none';
+  answerInput.style.display = 'none';
+  submitBtn.disabled = true;
+  setSetupEnabled(true);
+  updateStorageStatus();
+  updateSheetStatus();
+  updateChampionBanner();
+})();
+</script>
+</body>
+</html>
