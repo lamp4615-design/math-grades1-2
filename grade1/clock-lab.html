@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>時鐘操作室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2140; --ink-soft:#5b527a; --bg:#fbf6e9; --bg2:#eef5e6;
+    --card:#ffffff; --card-border:#e7ded0; --accent:#ff6b4a; --accent-ink:#ffffff;
+    --accent2:#2f9e8f; --gold:#f2a516; --wrong:#e5484d; --right:#2f9e5f;
+    --face:#fffdf7; --hour:#2b2140; --minute:#ff6b4a; --tick:#8a809f;
+    --shadow: 0 6px 0 rgba(43,33,64,0.08), 0 10px 24px rgba(43,33,64,0.10);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#f1ece0; --ink-soft:#c9c2df; --bg:#1b2420; --bg2:#212c26;
+      --card:#26332c; --card-border:#3a4a40; --accent:#ff8a68; --accent-ink:#26170f;
+      --accent2:#4bc2b0; --gold:#ffc45e; --wrong:#ff6b6f; --right:#57d17f;
+      --face:#1f2a24; --hour:#f1ece0; --minute:#ff8a68; --tick:#9a94b0;
+      --shadow: 0 6px 0 rgba(0,0,0,0.25), 0 10px 24px rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Baloo 2","PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,sans-serif;
+    padding:16px 16px 40px; line-height:1.8;
+  }
+  h1,h2{ margin:0; text-wrap:balance; }
+  p{ margin:0; }
+  ruby{ ruby-position:inter-character; }
+  rt{ font-size:0.62em; color:var(--ink-soft); font-weight:700; user-select:none; margin-inline-start:1px; }
+  body.zy-off rt{ display:none; }
+  .btn{
+    font-family:inherit; font-weight:700; font-size:17px; border-radius:14px;
+    padding:10px 18px; cursor:pointer; background:var(--card); color:var(--ink);
+    border:2px solid var(--card-border); box-shadow:var(--shadow); transition:transform .08s ease;
+  }
+  .btn:active{ transform:translateY(3px); box-shadow:none; }
+  .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .btn.small{ font-size:15px; padding:6px 12px; }
+  .btn:focus-visible{ outline:3px solid var(--accent2); outline-offset:2px; }
+  .btn[disabled]{ opacity:.45; cursor:default; }
+  #app{ max-width:880px; margin:0 auto; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .topbar .who{ font-size:14px; color:var(--ink-soft); }
+  .topbar .who a{ color:var(--accent2); }
+  .hero{ background:linear-gradient(135deg,var(--bg2),var(--bg)); border:2px solid var(--card-border);
+    border-radius:22px; padding:20px; margin-bottom:18px; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .hero h1{ font-size:clamp(26px,5vw,36px); font-weight:800; }
+  .hero .sub{ color:var(--ink-soft); font-size:16px; margin-top:6px; line-height:2.1; }
+  .hero .mascot{ font-size:70px; }
+  .modes{ display:grid; grid-template-columns:1fr; gap:14px; }
+  @media (min-width:560px){ .modes{ grid-template-columns:1fr 1fr; } }
+  .mode{ text-align:left; display:flex; gap:14px; align-items:flex-start; background:var(--card);
+    border:2px solid var(--card-border); border-radius:20px; padding:18px; cursor:pointer; color:var(--ink);
+    box-shadow:var(--shadow); font-family:inherit; font-size:16px; }
+  .mode:active{ transform:translateY(3px); box-shadow:none; }
+  .mode .ic{ font-size:40px; line-height:1; }
+  .mode .t{ font-size:20px; font-weight:800; display:block; }
+  .mode .d{ font-size:15px; color:var(--ink-soft); display:block; line-height:2; }
+  .mode .stars{ color:var(--gold); font-size:18px; display:block; margin-top:2px; }
+  .tip{ margin-top:18px; background:var(--card); border:2px dashed var(--card-border); border-radius:16px; padding:14px 16px; font-size:15px; color:var(--ink-soft); line-height:2.1; }
+
+  .play{ background:var(--card); border:2px solid var(--card-border); border-radius:22px; padding:16px; box-shadow:var(--shadow); }
+  .play-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .progress{ font-weight:800; color:var(--ink-soft); }
+  .prompt{ font-size:clamp(20px,4.4vw,26px); font-weight:800; text-align:center; margin:6px 0 4px; line-height:2.2; }
+  .hint{ text-align:center; color:var(--ink-soft); font-size:16px; min-height:1.8em; line-height:2.1; }
+  .clock-wrap{ display:flex; justify-content:center; margin:6px 0; }
+  svg.clock{ width:min(78vw,340px); height:auto; touch-action:none; user-select:none; cursor:grab; border-radius:50%; }
+  svg.clock.big{ width:min(86vw,560px); }
+  svg.clock:focus-visible{ outline:4px solid var(--accent2); outline-offset:6px; }
+  svg.clock.locked{ cursor:default; }
+  .readout{ text-align:center; font-size:26px; font-weight:800; min-height:1.9em; line-height:2.2; }
+  .laps{ text-align:center; font-size:18px; font-weight:700; color:var(--accent2); min-height:1.8em; line-height:2.1; }
+  .row{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+  .choices{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:12px; }
+  .choice{ font-size:22px; min-width:130px; }
+  .choice.ok{ background:var(--right); color:#fff; border-color:transparent; }
+  .choice.no{ background:var(--wrong); color:#fff; border-color:transparent; }
+  .fb{ text-align:center; font-size:19px; font-weight:800; min-height:2em; margin-top:10px; line-height:2.2; }
+  .fb.ok{ color:var(--right); } .fb.no{ color:var(--wrong); }
+  .result{ text-align:center; padding:20px 10px; }
+  .result .big-stars{ font-size:52px; color:var(--gold); letter-spacing:6px; }
+  .result h2{ font-size:28px; margin-top:6px; }
+  .result p{ color:var(--ink-soft); font-size:18px; margin-top:8px; line-height:2.1; }
+  @keyframes pulse{ 0%{ transform:scale(1);} 50%{ transform:scale(1.18);} 100%{ transform:scale(1);} }
+  .flash{ animation:pulse .6s ease 2; }
+  #hour-num-hl{ transition:opacity .3s; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <a class="btn small" href="index.html" id="lnk-home"></a>
+    <span class="who" id="who"></span>
+    <span>
+      <button class="btn small" id="btn-zy"></button>
+    </span>
+  </div>
+
+  <section id="hub">
+    <div class="hero">
+      <div>
+        <h1 id="hub-title"></h1>
+        <p class="sub" id="hub-sub"></p>
+      </div>
+      <div class="mascot" aria-hidden="true">🕰️</div>
+    </div>
+    <div class="modes" id="modes"></div>
+    <p class="tip" id="hub-tip"></p>
+  </section>
+
+  <section id="play" class="play hidden">
+    <div class="play-head">
+      <button class="btn small" id="btn-back"></button>
+      <span class="progress" id="progress"></span>
+      <span>
+        <button class="btn small" id="btn-say" title="唸題目">🔊</button>
+        <button class="btn small hidden" id="btn-full" title="全螢幕">⛶</button>
+      </span>
+    </div>
+    <p class="prompt" id="prompt"></p>
+    <p class="hint" id="hint"></p>
+    <div class="clock-wrap" id="clock-wrap"></div>
+    <p class="readout" id="readout"></p>
+    <p class="laps" id="laps"></p>
+    <div class="row" id="controls"></div>
+    <div class="choices" id="choices"></div>
+    <p class="fb" id="fb"></p>
+    <div class="row" id="next-row"></div>
+  </section>
+
+  <section id="result" class="play hidden">
+    <div class="result">
+      <div class="big-stars" id="res-stars"></div>
+      <h2 id="res-title"></h2>
+      <p id="res-sub"></p>
+      <div class="row" style="margin-top:18px">
+        <button class="btn primary" id="btn-again"></button>
+        <button class="btn" id="btn-hub"></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= zhuyin（沿用 number-forest.html 的字典，並補上本頁用字） ================= */
+  var CHAR_ZY = {
+    "數":"ㄕㄨˇ","字":"ㄗˋ","森":"ㄙㄣ","林":"ㄌㄧㄣˊ","闖":"ㄔㄨㄤˇ","關":"ㄍㄨㄢ",
+    "一":"ㄧ","年":"ㄋㄧㄢˊ","級":"ㄐㄧˊ","樂":"ㄌㄜˋ","園":"ㄩㄢˊ","個":"ㄍㄜˋ","卡":"ㄎㄚˇ",
+    "起":"ㄑㄧˇ","玩":"ㄨㄢˊ","遊":"ㄧㄡˊ","戲":"ㄒㄧˋ","學":"ㄒㄩㄝˊ","已":"ㄧˇ","經":"ㄐㄧㄥ",
+    "得":"ㄉㄜˊ","到":"ㄉㄠˋ","顆":"ㄎㄜ","星":"ㄒㄧㄥ","共":"ㄍㄨㄥˋ","返":"ㄈㄢˇ","回":"ㄏㄨㄟˊ",
+    "地":"ㄉㄧˋ","圖":"ㄊㄨˊ","再":"ㄗㄞˋ","次":"ㄘˋ","下":"ㄒㄧㄚˋ","題":"ㄊㄧˊ","查":"ㄔㄚˊ",
+    "看":"ㄎㄢˋ","結":"ㄐㄧㄝˊ","果":"ㄍㄨㄛˇ","答":"ㄉㄚˊ","對":"ㄉㄨㄟˋ","了":"ㄌㄜ","太":"ㄊㄞˋ",
+    "棒":"ㄅㄤˋ","想":"ㄒㄧㄤˇ","正":"ㄓㄥˋ","確":"ㄑㄩㄝˋ","案":"ㄢˋ","是":"ㄕˋ","綠":"ㄌㄩˋ",
+    "色":"ㄙㄜˋ","的":"ㄉㄜ","第":"ㄉㄧˋ","多":"ㄉㄨㄛ","加":"ㄐㄧㄚ","油":"ㄧㄡˊ","你":"ㄋㄧˇ",
+    "會":"ㄏㄨㄟˋ","越":"ㄩㄝˋ","半":"ㄅㄢˋ","繼":"ㄐㄧˋ","續":"ㄒㄩˋ","很":"ㄏㄣˇ","不":"ㄅㄨˋ",
+    "錯":"ㄘㄨㄛˋ","喔":"ㄛ","快":"ㄎㄨㄞˋ","要":"ㄧㄠˋ","全":"ㄑㄩㄢˊ","部":"ㄅㄨˋ","小":"ㄒㄧㄠˇ",
+    "達":"ㄉㄚˊ","人":"ㄖㄣˊ","積":"ㄐㄧ","木":"ㄇㄨˋ","屋":"ㄨ","認":"ㄖㄣˋ","識":"ㄕˋ","以":"ㄧˇ",
+    "內":"ㄋㄟˋ","位":"ㄨㄟˋ","值":"ㄓˊ","大":"ㄉㄚˋ","冒":"ㄇㄠˋ","險":"ㄒㄧㄢˇ","分":"ㄈㄣ",
+    "辨":"ㄅㄧㄢˋ","十":"ㄕˊ","和":"ㄏㄢˋ","比":"ㄅㄧˇ","誰":"ㄕㄟˊ","決":"ㄐㄩㄝˊ","排":"ㄆㄞˊ",
+    "隊":"ㄉㄨㄟˋ","獎":"ㄐㄧㄤˇ","盃":"ㄅㄟ","順":"ㄕㄨㄣˋ","序":"ㄒㄩˋ","青":"ㄑㄧㄥ","蛙":"ㄨㄚ",
+    "跳":"ㄊㄧㄠˋ","法":"ㄈㄚˇ","減":"ㄐㄧㄢˇ","用":"ㄩㄥˋ","算":"ㄙㄨㄢˋ","閱":"ㄩㄝˋ","讀":"ㄉㄨˊ",
+    "理":"ㄌㄧˇ","解":"ㄐㄧㄝˇ","偵":"ㄓㄣ","探":"ㄊㄢˋ","故":"ㄍㄨˋ","事":"ㄕˋ","找":"ㄓㄠˇ",
+    "出":"ㄔㄨ","商":"ㄕㄤ","店":"ㄉㄧㄢˋ","買":"ㄇㄞˇ","東":"ㄉㄨㄥ","西":"ㄒㄧ","錢":"ㄑㄧㄢˊ",
+    "幣":"ㄅㄧˋ","練":"ㄌㄧㄢˋ","習":"ㄒㄧˊ","付":"ㄈㄨˋ","時":"ㄕˊ","鐘":"ㄓㄨㄥ","精":"ㄐㄧㄥ",
+    "靈":"ㄌㄧㄥˊ","懂":"ㄉㄨㄥˇ","整":"ㄓㄥˇ","點":"ㄉㄧㄢˇ","曆":"ㄌㄧˋ","尋":"ㄒㄩㄣˊ","寶":"ㄅㄠˇ",
+    "上":"ㄕㄤˋ","期":"ㄑㄧˊ","立":"ㄌㄧˋ","方":"ㄈㄤ","體":"ㄊㄧˇ","高":"ㄍㄠ","矮":"ㄞˇ",
+    "量":"ㄌㄧㄤˊ","長":"ㄔㄤˊ","短":"ㄉㄨㄢˇ","抓":"ㄓㄨㄚ","路":"ㄌㄨˋ","線":"ㄒㄧㄢˋ","走":"ㄗㄡˇ",
+    "哪":"ㄋㄚˇ","條":"ㄊㄧㄠˊ","較":"ㄐㄧㄠˋ","堆":"ㄉㄨㄟ","邊":"ㄅㄧㄢ","樣":"ㄧㄤˋ","右":"ㄧㄡˋ",
+    "左":"ㄗㄨㄛˇ","幾":"ㄐㄧˇ","每":"ㄇㄟˇ","片":"ㄆㄧㄢˋ","荷":"ㄏㄜˊ","葉":"ㄧㄝˋ","有":"ㄧㄡˇ",
+    "蘋":"ㄆㄧㄥˊ","又":"ㄧㄡˋ","摘":"ㄓㄞ","現":"ㄒㄧㄢˋ","原":"ㄩㄢˊ","本":"ㄅㄣˇ","氣":"ㄑㄧˋ",
+    "球":"ㄑㄧㄡˊ","媽":"ㄇㄚ","糖":"ㄊㄤˊ","吃":"ㄔ","掉":"ㄉㄧㄠˋ","還":"ㄏㄞˊ","剩":"ㄕㄥˋ",
+    "書":"ㄕㄨ","架":"ㄐㄧㄚˋ","借":"ㄐㄧㄝˋ","鉛":"ㄑㄧㄢ","筆":"ㄅㄧˇ","盒":"ㄏㄜˊ","裡":"ㄌㄧˇ",
+    "枝":"ㄓ","今":"ㄐㄧㄣ","天":"ㄊㄧㄢ","她":"ㄊㄚ","給":"ㄍㄟˇ","同":"ㄊㄨㄥˊ","請":"ㄑㄧㄥˇ",
+    "問":"ㄨㄣˋ","班":"ㄅㄢ","女":"ㄋㄩˇ","生":"ㄕㄥ","男":"ㄋㄢˊ","其":"ㄑㄧˊ","中":"ㄓㄨㄥ",
+    "假":"ㄐㄧㄚˋ","沒":"ㄇㄟˊ","來":"ㄌㄞˊ","課":"ㄎㄜˋ","魚":"ㄩˊ","缸":"ㄍㄤ","紅":"ㄏㄨㄥˊ",
+    "黑":"ㄏㄟ","放":"ㄈㄤˋ","進":"ㄐㄧㄣˋ","元":"ㄩㄢˊ","爸":"ㄅㄚˋ","他":"ㄊㄚ","當":"ㄉㄤ",
+    "作":"ㄗㄨㄛˋ","勵":"ㄌㄧˋ","操":"ㄘㄠ","場":"ㄔㄤˇ","隻":"ㄓ","狗":"ㄍㄡˇ","在":"ㄗㄞˋ",
+    "牠":"ㄊㄚ","們":"ㄇㄣ","白":"ㄅㄞˊ","過":"ㄍㄨㄛˋ","兒":"ㄦ","跑":"ㄆㄠˇ","彈":"ㄉㄢˋ",
+    "珠":"ㄓㄨ","兩":"ㄌㄧㄤˇ","張":"ㄓㄤ","貼":"ㄊㄧㄝ","紙":"ㄓˇ","拿":"ㄋㄚˊ","剛":"ㄍㄤ",
+    "好":"ㄏㄠˇ","款":"ㄎㄨㄢˇ","闆":"ㄅㄢˇ","謝":"ㄒㄧㄝˋ","囉":"ㄌㄛ","試":"ㄕˋ","夠":"ㄍㄡˋ",
+    "麵":"ㄇㄧㄢˋ","包":"ㄅㄠ","汁":"ㄓ","蠟":"ㄌㄚˋ","記":"ㄐㄧˋ","偶":"ㄡˇ","具":"ㄐㄩˋ",
+    "巴":"ㄅㄚ","士":"ㄕˋ","厲":"ㄌㄧˋ","害":"ㄏㄞˋ","都":"ㄉㄡ","就":"ㄐㄧㄡˋ","購":"ㄍㄡˋ",
+    "物":"ㄨˋ","成":"ㄔㄥˊ","功":"ㄍㄨㄥ","面":"ㄇㄧㄢˋ","月":"ㄩㄝˋ","日":"ㄖˋ","隔":"ㄍㄜˊ",
+    "疊":"ㄉㄧㄝˊ","緞":"ㄉㄨㄢˋ","帶":"ㄉㄞˋ","迴":"ㄏㄨㄟˊ","紋":"ㄨㄣˊ","針":"ㄓㄣ","步":"ㄅㄨˋ",
+    "明":"ㄇㄧㄥˊ","美":"ㄇㄟˇ","華":"ㄏㄨㄚˊ","阿":"ㄚ","強":"ㄑㄧㄤˊ","芳":"ㄈㄤ","傑":"ㄐㄧㄝˊ",
+    "妹":"ㄇㄟˋ","弟":"ㄉㄧˋ","二":"ㄦˋ","三":"ㄙㄢ","四":"ㄙˋ","五":"ㄨˇ","六":"ㄌㄧㄡˋ",
+    "七":"ㄑㄧ","八":"ㄅㄚ","九":"ㄐㄧㄡˇ","注":"ㄓㄨˋ","音":"ㄧㄣ","開":"ㄎㄞ","尺":"ㄔˇ",
+    "少":"ㄕㄠˇ","老":"ㄌㄠˇ","這":"ㄓㄜˋ","重":"ㄔㄨㄥˊ","清":"ㄑㄧㄥ","空":"ㄎㄨㄥ",
+    "目":"ㄇㄨˋ","前":"ㄑㄧㄢˊ","彎":"ㄨㄢ","曲":"ㄑㄩ","格":"ㄍㄜˊ","差":"ㄔㄚˋ","從":"ㄘㄨㄥˊ",
+    "搬":"ㄅㄢ","家":"ㄐㄧㄚ","號":"ㄏㄠˋ","被":"ㄅㄟˋ","移":"ㄧˊ","動":"ㄉㄨㄥˋ","別":"ㄅㄧㄝˊ",
+    "甲":"ㄐㄧㄚˇ","乙":"ㄧˇ","丙":"ㄅㄧㄥˇ","間":"ㄐㄧㄢ","另":"ㄌㄧㄥˋ","最":"ㄗㄨㄟˋ",
+    "新":"ㄒㄧㄣ","馬":"ㄇㄚˇ","說":"ㄕㄨㄛ","也":"ㄧㄝˇ","能":"ㄋㄥˊ",
+    "姓":"ㄒㄧㄥˋ","名":"ㄇㄧㄥˊ","選":"ㄒㄩㄢˇ","擇":"ㄗㄜˊ","始":"ㄕˇ","歡":"ㄏㄨㄢ","迎":"ㄧㄥˊ",
+    "先":"ㄒㄧㄢ","登":"ㄉㄥ","入":"ㄖㄨˋ","直":"ㄓˊ","師":"ㄕ","專":"ㄓㄨㄢ","設":"ㄕㄜˋ","定":"ㄉㄧㄥˋ",
+    "資":"ㄗ","料":"ㄌㄧㄠˋ","網":"ㄨㄤˇ","址":"ㄓˇ","儲":"ㄔㄨˊ","存":"ㄘㄨㄣˊ","連":"ㄌㄧㄢˊ",
+    "送":"ㄙㄨㄥˋ","失":"ㄕ","敗":"ㄅㄞˋ","切":"ㄑㄧㄝˋ",
+    "例":"ㄌㄧˋ","如":"ㄖㄨˊ","取":"ㄑㄩˇ","單":"ㄉㄢ","填":"ㄊㄧㄢˊ","寫":"ㄒㄧㄝˇ","尚":"ㄕㄤˋ","未":"ㄨㄟˋ",
+    "往":"ㄨㄤˇ","倒":"ㄉㄠˋ","退":"ㄊㄨㄟˋ","規":"ㄍㄨㄟ","律":"ㄌㄩˋ","份":"ㄈㄣˋ",
+    "身":"ㄕㄣ","站":"ㄓㄢˋ","箱":"ㄒㄧㄤ","子":"ㄗ","段":"ㄉㄨㄢˋ","玉":"ㄩˋ","智":"ㄓˋ",
+    "葵":"ㄎㄨㄟˊ","光":"ㄍㄨㄤ","丁":"ㄉㄧㄥ","刻":"ㄎㄜˋ","可":"ㄎㄜˇ","早":"ㄗㄠˇ","餐":"ㄘㄢ",
+    "午":"ㄨˇ","晚":"ㄨㄢˇ","睡":"ㄕㄨㄟˋ","覺":"ㄐㄧㄠˋ","國":"ㄍㄨㄛˊ","慶":"ㄑㄧㄥˋ","煙":"ㄧㄢ",
+    "火":"ㄏㄨㄛˇ","校":"ㄒㄧㄠˋ","運":"ㄩㄣˋ","那":"ㄋㄚˋ","合":"ㄏㄜˊ",
+    "與":"ㄩˇ","計":"ㄐㄧˋ","形":"ㄒㄧㄥˊ","活":"ㄏㄨㄛˊ","換":"ㄏㄨㄢˋ","交":"ㄐㄧㄠ",
+    "板":"ㄅㄢˇ","接":"ㄐㄧㄝ","平":"ㄆㄧㄥˊ","版":"ㄅㄢˇ","基":"ㄐㄧ","準":"ㄓㄨㄣˇ","只":"ㄓˇ"
+  };
+  var EXTRA_ZY = {
+    "公":"ㄍㄨㄥ","去":"ㄑㄩˋ","口":"ㄎㄡˇ","台":"ㄊㄞˊ","向":"ㄒㄧㄤˋ","圈":"ㄑㄩㄢ","孩":"ㄏㄞˊ",
+    "室":"ㄕˋ","幫":"ㄅㄤ","床":"ㄔㄨㄤˊ","影":"ㄧㄥˇ","後":"ㄏㄡˋ","怎":"ㄗㄣˇ","我":"ㄨㄛˇ",
+    "或":"ㄏㄨㄛˋ","手":"ㄕㄡˇ","才":"ㄘㄞˊ","把":"ㄅㄚˇ","投":"ㄊㄡˊ","指":"ㄓˇ","撥":"ㄅㄛ",
+    "檢":"ㄐㄧㄢˇ","滑":"ㄏㄨㄚˊ","由":"ㄧㄡˊ","盤":"ㄆㄢˊ","示":"ㄕˋ","績":"ㄐㄧ","自":"ㄗˋ",
+    "著":"˙ㄓㄜ","藏":"ㄘㄤˊ","訣":"ㄐㄩㄝˊ","變":"ㄅㄧㄢˋ","讓":"ㄖㄤˋ","跟":"ㄍㄣ","轉":"ㄓㄨㄢˇ",
+    "鍵":"ㄐㄧㄢˋ","門":"ㄇㄣˊ","顯":"ㄒㄧㄢˇ","飯":"ㄈㄢˋ","麼":"˙ㄇㄜ","鼠":"ㄕㄨˇ"
+  };
+  for(var _k in EXTRA_ZY) CHAR_ZY[_k]=EXTRA_ZY[_k];
+  var PHRASE_ZY = {
+    "數學":["ㄕㄨˋ","ㄒㄩㄝˊ"], "數字":["ㄕㄨˋ","ㄗˋ"], "一共":["ㄧˊ","ㄍㄨㄥˋ"],
+    "一樣":["ㄧˊ","ㄧㄤˋ"], "一次":["ㄧˊ","ㄘˋ"], "一個":["ㄧˊ","ㄍㄜ"], "一半":["ㄧˊ","ㄅㄢˋ"],
+    "一起":["ㄧˋ","ㄑㄧˇ"], "一題":["ㄧˋ","ㄊㄧˊ"], "一數":["ㄧˋ","ㄕㄨˇ"], "一堆":["ㄧˋ","ㄉㄨㄟ"],
+    "一量":["ㄧˋ","ㄌㄧㄤˊ"], "一比":["ㄧˋ","ㄅㄧˇ"], "一會":["ㄧˊ","ㄏㄨㄟˋ"], "一份":["ㄧˊ","ㄈㄣˋ"],
+    "不夠":["ㄅㄨˊ","ㄍㄡˋ"], "不錯":["ㄅㄨˊ","ㄘㄨㄛˋ"],
+    "一圈":["ㄧˋ","ㄑㄩㄢ"], "一格":["ㄧˋ","ㄍㄜˊ"], "一點":["ㄧˋ","ㄉㄧㄢˇ"], "一轉":["˙ㄧ","ㄓㄨㄢˇ"],
+    "撥得":["ㄅㄛ","˙ㄉㄜ"]
+  };
+  function az(text){
+    var out='', chars=Array.from(String(text)), i=0;
+    while(i<chars.length){
+      if(i+1<chars.length){
+        var two = chars[i]+chars[i+1];
+        if(PHRASE_ZY[two]){
+          out += '<ruby>'+chars[i]+'<rt>'+PHRASE_ZY[two][0]+'</rt></ruby><wbr>';
+          out += '<ruby>'+chars[i+1]+'<rt>'+PHRASE_ZY[two][1]+'</rt></ruby><wbr>';
+          i+=2; continue;
+        }
+      }
+      var ch = chars[i];
+      if(CHAR_ZY[ch]) out += '<ruby>'+ch+'<rt>'+CHAR_ZY[ch]+'</rt></ruby><wbr>';
+      else out += ch;
+      i++;
+    }
+    return out;
+  }
+
+  /* ================= utils ================= */
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function pick(arr){ return arr[rand(0,arr.length-1)]; }
+  function shuffle(arr){ var a=arr.slice(); for(var i=a.length-1;i>0;i--){ var j=rand(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function mod(n,m){ return ((n%m)+m)%m; }
+  function $(id){ return document.getElementById(id); }
+  function hourOf(total){ var h=Math.floor(mod(total,720)/60); return h===0?12:h; }
+  function minOf(total){ return mod(total,60); }
+  function nextHour(h,n){ return mod(h-1+n,12)+1; }
+  function timeText(total){
+    var h=hourOf(total), m=Math.round(minOf(total));
+    if(m===0||m===60) return h+'點';
+    if(m===30) return h+'點半';
+    return h+'點多';
+  }
+  function hm(h,m){ return m===0 ? h+'點' : h+'點半'; }
+  function toTotal(h,m){ return (h%12)*60+m; }
+
+  /* ================= storage / identity（與數字森林共用） ================= */
+  function lsGet(k,d){ try{ var v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function zyPref(){ return lsGet('nf_zy','1')!=='0'; }
+  function getIdentity(){ var c=lsGet('nf_class',''), n=lsGet('nf_name',''); return (c&&n)?{cls:c,name:n}:null; }
+  var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbymeX7KkuiscvkkPhIMr085r96sa3varVo_zXe7G5FUreDMBv77vRn-1xNCq86Ksb8NHw/exec';
+  function getApiUrl(){ var v=lsGet('nf_api',''); return (v&&v.trim())?v.trim():DEFAULT_API_URL; }
+  function submitRecord(mode, correct, total, stars){
+    var api=getApiUrl(), id=getIdentity();
+    if(!api||!id) return;
+    var payload={ className:id.cls, studentName:id.name, stageId:'clockLab-'+mode.id,
+      stageTitle:'時鐘操作室：'+mode.title, category:'time', correct:correct, total:total, stars:stars };
+    try{ fetch(api,{method:'POST', body:JSON.stringify(payload)}).catch(function(){}); }catch(e){}
+  }
+  function loadStars(id){ return parseInt(lsGet('cl_stars_'+id,'0'),10)||0; }
+  function saveStars(id,s){ if(s>loadStars(id)) lsSet('cl_stars_'+id,String(s)); }
+
+  /* ================= speech ================= */
+  var lastSay='';
+  function say(text){
+    lastSay=text;
+    try{
+      if(!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text); u.lang='zh-TW'; u.rate=0.85;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  /* ================= the clock ================= */
+  var SVGNS='http://www.w3.org/2000/svg';
+  function el(tag,attrs){ var e=document.createElementNS(SVGNS,tag); for(var k in attrs) e.setAttribute(k,attrs[k]); return e; }
+
+  function Clock(container, opts){
+    opts=opts||{};
+    var self=this;
+    this.total = opts.total||0;
+    this.locked = !!opts.locked;
+    this.onMove = opts.onMove||function(){};
+    this.onHourStep = opts.onHourStep||function(){};
+    this.onRelease = opts.onRelease||function(){};
+    var svg=el('svg',{viewBox:'0 0 300 300','class':'clock'+(opts.big?' big':'')+(this.locked?' locked':''), role:'img'});
+    if(!this.locked){ svg.setAttribute('tabindex','0'); svg.setAttribute('aria-label','時鐘，用手指或滑鼠轉動長針，也可以用左右鍵'); }
+    svg.appendChild(el('circle',{cx:150,cy:150,r:142,style:'fill:var(--face);stroke:var(--ink);',  'stroke-width':6}));
+    for(var i=0;i<60;i++){
+      var a=i*6*Math.PI/180, major=i%5===0, r1=major?122:128, r2=134;
+      svg.appendChild(el('line',{x1:150+r1*Math.sin(a), y1:150-r1*Math.cos(a), x2:150+r2*Math.sin(a), y2:150-r2*Math.cos(a),
+        style:'stroke:var(--tick);', 'stroke-width':major?4:2, 'stroke-linecap':'round'}));
+    }
+    this.numEls={};
+    for(var n=1;n<=12;n++){
+      var b=n*30*Math.PI/180;
+      var t=el('text',{x:150+102*Math.sin(b), y:150-102*Math.cos(b)+10, 'text-anchor':'middle', 'font-size':28,
+        style:"fill:var(--ink);font-family:'Baloo 2',sans-serif;font-weight:800;"});
+      t.textContent=n; svg.appendChild(t); this.numEls[n]=t;
+    }
+    this.hourHand=el('line',{x1:150,y1:150,x2:150,y2:88, style:'stroke:var(--hour);', 'stroke-width':12, 'stroke-linecap':'round'});
+    this.minHand=el('line',{x1:150,y1:150,x2:150,y2:36, style:'stroke:var(--minute);', 'stroke-width':7, 'stroke-linecap':'round'});
+    this.minKnob=el('circle',{cx:150,cy:36,r:11, style:'fill:var(--minute);opacity:.9;'});
+    svg.appendChild(this.hourHand); svg.appendChild(this.minHand);
+    if(!this.locked) svg.appendChild(this.minKnob);
+    svg.appendChild(el('circle',{cx:150,cy:150,r:9, style:'fill:var(--ink);'}));
+    container.innerHTML=''; container.appendChild(svg);
+    this.svg=svg;
+    this.render();
+
+    if(this.locked) return;
+    var dragging=false;
+    function angleFromEvent(ev){
+      var r=svg.getBoundingClientRect();
+      var x=ev.clientX-(r.left+r.width/2), y=ev.clientY-(r.top+r.height/2);
+      var deg=Math.atan2(x,-y)*180/Math.PI; if(deg<0) deg+=360;
+      return deg;
+    }
+    function follow(ev){
+      var m=angleFromEvent(ev)/6;
+      var cur=mod(self.total,60);
+      var d=m-cur; if(d>30) d-=60; if(d<-30) d+=60;
+      self.moveTo(self.total+d);
+    }
+    svg.addEventListener('pointerdown',function(ev){ if(self.locked) return; self.stop(); dragging=true; try{ svg.setPointerCapture(ev.pointerId); }catch(e){} svg.style.cursor='grabbing'; follow(ev); ev.preventDefault(); });
+    svg.addEventListener('pointermove',function(ev){ if(dragging) follow(ev); });
+    function end(){ if(!dragging) return; dragging=false; svg.style.cursor=''; self.snap(); self.onRelease(self.total); }
+    svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
+    svg.addEventListener('keydown',function(ev){
+      if(self.locked) return;
+      if(ev.key==='ArrowRight'||ev.key==='ArrowUp'){ self.moveTo(Math.round(self.total)+5); self.onRelease(self.total); ev.preventDefault(); }
+      if(ev.key==='ArrowLeft'||ev.key==='ArrowDown'){ self.moveTo(Math.round(self.total)-5); self.onRelease(self.total); ev.preventDefault(); }
+    });
+  }
+  Clock.prototype.moveTo=function(t){
+    var before=Math.floor(this.total/60), after=Math.floor(t/60);
+    this.total=t; this.render(); this.onMove(t);
+    if(after!==before) this.onHourStep(after>before?1:-1, t);
+  };
+  Clock.prototype.snap=function(){ this.total=Math.round(this.total/5)*5; this.render(); this.onMove(this.total); };
+  Clock.prototype.render=function(){
+    var ma=mod(this.total,60)*6*Math.PI/180, ha=mod(this.total,720)/2*Math.PI/180;
+    this.minHand.setAttribute('x2',150+114*Math.sin(ma)); this.minHand.setAttribute('y2',150-114*Math.cos(ma));
+    this.minKnob.setAttribute('cx',150+114*Math.sin(ma)); this.minKnob.setAttribute('cy',150-114*Math.cos(ma));
+    this.hourHand.setAttribute('x2',150+66*Math.sin(ha)); this.hourHand.setAttribute('y2',150-66*Math.cos(ha));
+  };
+  Clock.prototype.flashNumber=function(n){
+    var t=this.numEls[n]; if(!t) return;
+    t.style.fill='var(--accent)'; t.classList.remove('flash'); void t.getBBox(); t.classList.add('flash');
+    t.style.transformBox='fill-box'; t.style.transformOrigin='center';
+    setTimeout(function(){ t.style.fill='var(--ink)'; t.classList.remove('flash'); },1300);
+  };
+  Clock.prototype.stop=function(){ if(this.animId) clearTimeout(this.animId); this.animId=null; };
+  Clock.prototype.destroy=function(){ this.stop(); this.locked=true; this.onMove=this.onHourStep=this.onRelease=function(){}; };
+  Clock.prototype.animateBy=function(delta,ms,done){
+    this.stop();
+    var self=this, start=Math.round(this.total), t0=Date.now();
+    // 用經過的實際時間推進（不用 requestAnimationFrame），掉幀或分頁節流時也會走完
+    function step(){
+      var p=Math.min(1,(Date.now()-t0)/ms), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      self.moveTo(start+delta*e);
+      if(p<1) self.animId=setTimeout(step,16);
+      else { self.animId=null; self.total=start+delta; self.render(); self.onMove(self.total); if(done) done(); }
+    }
+    this.animId=setTimeout(step,16);
+  };
+
+  /* ================= modes ================= */
+  var MODES=[
+    {id:'explore', icon:'🖐️', title:'自由撥撥看', desc:'轉長針，看短針怎麼走。長針走一圈，短針走一格。', quiz:false},
+    {id:'set', icon:'🎯', title:'撥出時刻', desc:'題目說幾點，你就把時鐘撥到幾點。整點和半點。', quiz:true, n:8},
+    {id:'pass', icon:'⏩', title:'時間經過', desc:'用手指轉長針走一圈、兩圈，看看變成幾點。', quiz:true, n:8},
+    {id:'read', icon:'👀', title:'讀讀看', desc:'看鐘面，選出現在是幾點。', quiz:true, n:8}
+  ];
+
+  var app={ mode:null, i:0, correct:0, clock:null, q:null, tries:0 };
+
+  function newClock(opts){ if(app.clock) app.clock.destroy(); app.clock=new Clock($('clock-wrap'),opts); return app.clock; }
+  function show(id){ ['hub','play','result'].forEach(function(s){ $(s).classList.toggle('hidden', s!==id); }); window.scrollTo(0,0); }
+  function clearPlay(){ ['prompt','hint','readout','laps','controls','choices','fb','next-row'].forEach(function(k){ $(k).innerHTML=''; $(k).className=$(k).className.replace(/\b(ok|no)\b/g,'').trim(); }); }
+  function btn(label, cls, fn){ var b=document.createElement('button'); b.className='btn '+(cls||''); b.innerHTML=label; b.addEventListener('click',fn); return b; }
+  function setPrompt(text){ $('prompt').innerHTML=az(text); say(text); }
+  function setHint(text){ $('hint').innerHTML=text?az(text):''; }
+  function setFb(text, ok){ var f=$('fb'); f.innerHTML=text?az(text):''; f.className='fb'+(text?(ok?' ok':' no'):''); }
+
+  function renderHub(){
+    $('hub-title').innerHTML=az('時鐘操作室');
+    $('hub-sub').innerHTML=az('用手指轉一轉長針，看看時間怎麼走！');
+    $('modes').innerHTML='';
+    MODES.forEach(function(m){
+      var b=document.createElement('button'); b.className='mode';
+      var s=m.quiz?loadStars(m.id):0;
+      b.innerHTML='<span class="ic" aria-hidden="true">'+m.icon+'</span><span><span class="t">'+az(m.title)+'</span><span class="d">'+az(m.desc)+'</span>'
+        +(m.quiz?'<span class="stars">'+'★★★'.slice(0,s)+'<span style="opacity:.25">'+'★★★'.slice(0,3-s)+'</span></span>':'')+'</span>';
+      b.addEventListener('click',function(){ start(m); });
+      $('modes').appendChild(b);
+    });
+    $('hub-tip').innerHTML=az('口訣：長針走一圈，短針走一格。長針指著12是整點，長針指著6是半點。')
+      +'<br><span style="font-size:13px">老師上課時，可以用「自由撥撥看」投影大時鐘，請孩子上台轉；鍵盤左右鍵也可以撥。</span>';
+    var id=getIdentity();
+    $('who').innerHTML = id ? az('你好，')+id.name+'（'+id.cls+'）' : az('還沒有登入，成績不會送出。')+' <a href="number-forest.html">'+az('去登入')+'</a>';
+  }
+
+  function start(m){
+    app.mode=m; app.i=0; app.correct=0; app.seen={};
+    show('play');
+    $('btn-full').classList.toggle('hidden', m.id!=='explore');
+    if(m.id==='explore') startExplore(); else nextQuestion();
+  }
+
+  /* ---- 自由撥撥看 ---- */
+  function startExplore(){
+    clearPlay();
+    $('progress').innerHTML=az('自由撥撥看');
+    setPrompt('轉轉看長針，短針會跟著走！');
+    var base=toTotal(3,0);
+    var showRead=true;
+    function upd(t){
+      $('readout').innerHTML = showRead ? az('現在是 '+timeText(t)) : '';
+      var d=t-base, laps=Math.floor(Math.abs(d)/60), half=(Math.abs(d)%60)>=30;
+      var txt = Math.abs(d)<30 ? '' : '長針'+(d<0?'倒著':'')+'走了 '+(laps>0?laps+' 圈':'')+(half?(laps>0?'半':'半圈'):'');
+      $('laps').innerHTML = txt?az(txt):'';
+    }
+    newClock({ total:base, big:true, onMove:upd,
+      onHourStep:function(dir,t){ app.clock.flashNumber(hourOf(t)); setHint(dir>0?'長針走一圈，短針走一格！':'長針倒著走，短針往回走一格。'); }
+    });
+    upd(base);
+    var c=$('controls');
+    c.appendChild(btn(az('長針走半圈'),'',function(){ app.clock.animateBy(30,900); }));
+    c.appendChild(btn(az('長針走一圈'),'primary',function(){ app.clock.animateBy(60,1600); }));
+    c.appendChild(btn(az('撥到整點'),'',function(){ app.clock.stop(); var t=Math.round(app.clock.total/60)*60; app.clock.moveTo(t); }));
+    c.appendChild(btn(az('從3點重新開始'),'',function(){ app.clock.stop(); base=toTotal(3,0); app.clock.moveTo(base); setHint(''); }));
+    var tg=btn(az('藏起答案'),'',function(){ showRead=!showRead; tg.innerHTML=az(showRead?'藏起答案':'顯示答案'); upd(app.clock.total); });
+    c.appendChild(tg);
+  }
+
+  /* ---- question generators ---- */
+  var SET_CTX=[
+    ['早上7點，小明起床了。請撥出7點。',7,0], ['早上8點，上學了。請撥出8點。',8,0],
+    ['中午12點，吃午餐。請撥出12點。',12,0], ['下午4點半，放學回家。請撥出4點半。',4,30],
+    ['晚上8點半，要睡覺了。請撥出8點半。',8,30], ['下午3點，寫功課。請撥出3點。',3,0],
+    ['晚上6點半，吃晚餐。請撥出6點半。',6,30], ['早上9點半，去公園玩。請撥出9點半。',9,30]
+  ];
+  function genSet(i){
+    var h,m,text;
+    if(i%2===1){ var c=pick(SET_CTX); text=c[0]; h=c[1]; m=c[2]; }
+    else { h=rand(1,12); m=(i<2)?0:pick([0,30]); text='請把時鐘撥到「'+hm(h,m)+'」。'; }
+    var startT; do{ startT=toTotal(rand(1,12),pick([0,30])); }while(mod(startT,720)===toTotal(h,m));
+    return {h:h,m:m,text:text,start:startT};
+  }
+  var PASS_CTX=[
+    function(h,m,n){ return '現在是'+hm(h,m)+'，長針走'+(n===1?'一':n===2?'兩':'三')+'圈後，是幾點？'; },
+    function(h,m,n){ return '媽媽說：「長針走'+(n===1?'一':'兩')+'圈後就吃飯。」現在是'+hm(h,m)+'，吃飯是幾點？'; },
+    function(h,m,n){ return '小華'+hm(h,m)+'出門，長針走了'+(n===1?'一':n===2?'兩':'三')+'圈後回到家，回到家是幾點？'; }
+  ];
+  function genPass(i){
+    var n = i<3 ? 1 : (i<6 ? pick([1,2]) : pick([1,2,3]));
+    var m = i<2 ? 0 : pick([0,30]);
+    var h = rand(1,11);
+    var ctx = (i<2) ? PASS_CTX[0] : pick(n===3?[PASS_CTX[0],PASS_CTX[2]]:PASS_CTX);
+    return {h:h,m:m,n:n,text:ctx(h,m,n),start:toTotal(h,m),ans:nextHour(h,n)};
+  }
+  function genRead(i){
+    var h=rand(1,12), m=(i<2)?0:pick([0,30]);
+    var opts;
+    if(m===30) opts=[[h,30],[nextHour(h,1),30],[h,0]];
+    else opts=[[h,0],[h,30], [h===12?6:12,0]];
+    return {h:h,m:m,opts:shuffle(opts)};
+  }
+
+  function nextQuestion(){
+    clearPlay();
+    var m=app.mode;
+    if(app.i>=m.n){ return finish(); }
+    $('progress').innerHTML=az('第'+(app.i+1)+'題 / 共'+m.n+'題');
+    app.tries=0;
+    var gen={set:genSet, pass:genPass, read:genRead}[m.id], q, guard=0;
+    do{ q=gen(app.i); guard++; }while(app.seen[q.text+'|'+q.h+'|'+q.m+'|'+(q.n||0)] && guard<20);
+    app.seen[q.text+'|'+q.h+'|'+q.m+'|'+(q.n||0)]=true;
+    if(m.id==='set') askSet(q);
+    if(m.id==='pass') askPass(q);
+    if(m.id==='read') askRead(q);
+  }
+  function addNext(){
+    var r=$('next-row'); r.innerHTML='';
+    r.appendChild(btn(az(app.i+1>=app.mode.n?'看結果':'下一題'),'primary',function(){ app.i++; nextQuestion(); }));
+  }
+  function done(firstTry){ if(firstTry) app.correct++; $('controls').innerHTML=''; addNext(); }
+
+  /* ---- 撥出時刻 ---- */
+  function askSet(q){
+    app.q=q;
+    setPrompt(q.text);
+    setHint(q.m===0?'整點：長針指著12。':'半點：長針指著6。');
+    var finished=false;
+    newClock({ total:q.start,
+      onHourStep:function(){ app.clock.flashNumber(hourOf(app.clock.total)); } });
+    $('controls').appendChild(btn(az('撥好了，檢查'),'primary',function(){
+      if(finished) return;
+      app.tries++;
+      var t=Math.round(app.clock.total), mm=minOf(t), hh=hourOf(t);
+      if(mod(t,720)===toTotal(q.h,q.m)){
+        finished=true; $('readout').innerHTML=az(hm(q.h,q.m));
+        setFb(app.tries===1?'答對了！你撥得好準！':'撥對了！',true); done(app.tries===1); return;
+      }
+      if(mm!==q.m){ setFb(q.m===0?'整點時，長針要指著12喔！':'半點時，長針要指著6喔！',false); }
+      else if(q.m===0){ setFb('長針對了！現在短針指著'+hh+'，要指著'+q.h+'才對。再轉轉長針，讓短針走到'+q.h+'。',false); }
+      else { setFb('長針對了！半點時，短針要在'+q.h+'和'+nextHour(q.h,1)+'中間。再轉轉長針。',false); }
+    }));
+  }
+
+  /* ---- 時間經過 ---- */
+  function askPass(q){
+    app.q=q;
+    setPrompt(q.text);
+    setHint('用手指轉長針，順著1、2、3的方向走'+(q.n===1?'一':q.n===2?'兩':'三')+'圈。');
+    var stage='turn';
+    function lapsText(t){
+      var d=t-q.start;
+      if(d<0) return '長針要順著1、2、3的方向走喔！';
+      var laps=Math.floor(d/60), half=(d%60)>=30;
+      return '長針走了 '+(laps>0?laps+' 圈':'')+(half?(laps>0?'半':'半圈'):'')+(d<30?'0 圈':'')+'（要走 '+q.n+' 圈）';
+    }
+    function upd(t){ if(stage==='turn') $('laps').innerHTML=az(lapsText(t)); }
+    newClock({ total:q.start, onMove:upd,
+      onHourStep:function(dir,t){ if(dir>0){ app.clock.flashNumber(hourOf(t)); setHint('長針走一圈，短針走一格！'); } },
+      onRelease:function(t){ check(t); } });
+    upd(q.start);
+    function check(t){
+      if(stage!=='turn') return;
+      var d=Math.round(t)-q.start;
+      if(d===q.n*60){ askAnswer(); }
+      else if(d>q.n*60){ setFb('走太多了！長針只要走'+q.n+'圈，往回轉一點。',false); }
+    }
+    function askAnswer(){
+      stage='answer'; setFb('',true);
+      $('laps').innerHTML=az('長針走了 '+q.n+' 圈！');
+      $('controls').innerHTML='';
+      app.clock.locked=true;
+      setHint('現在短針指著哪裡？是幾點？');
+      var opts=shuffle([q.ans, nextHour(q.h,q.n+1), q.n>1?nextHour(q.h,1):q.h]).filter(function(v,i,a){return a.indexOf(v)===i;});
+      while(opts.length<3){ var x=rand(1,12); if(opts.indexOf(x)<0) opts.push(x); }
+      opts.forEach(function(hv){
+        var b=btn(az(hm(hv,q.m)),'choice',function(){
+          if(stage==='done') return;
+          app.tries++;
+          if(hv===q.ans){ b.classList.add('ok'); stage='done';
+            setFb((app.tries===1?'答對了！':'對了！')+hm(q.h,q.m)+'，長針走'+q.n+'圈，是'+hm(q.ans,q.m)+'。',true); done(app.tries===1); }
+          else { b.classList.add('no'); b.disabled=true; setFb('看看短針：長針走一圈，短針只走一格喔！',false); }
+        });
+        $('choices').appendChild(b);
+      });
+    }
+    $('controls').appendChild(btn(az('幫我轉'),'',function(){
+      if(stage!=='turn') return;
+      app.tries++;
+      app.clock.moveTo(q.start); app.clock.animateBy(q.n*60, 1500*q.n, function(){ askAnswer(); });
+    }));
+    $('controls').appendChild(btn(az('回到開始'),'',function(){ if(stage==='turn'){ app.clock.stop(); app.clock.moveTo(q.start); setFb('',true); } }));
+  }
+
+  /* ---- 讀讀看 ---- */
+  function askRead(q){
+    app.q=q;
+    setPrompt('鐘面上是幾點？');
+    newClock({ total:toTotal(q.h,q.m), locked:true });
+    var finished=false;
+    q.opts.forEach(function(o){
+      var b=btn(az(hm(o[0],o[1])),'choice',function(){
+        if(finished) return;
+        app.tries++;
+        if(o[0]===q.h&&o[1]===q.m){ finished=true; b.classList.add('ok'); setFb(app.tries===1?'答對了！':'對了！',true); done(app.tries===1); }
+        else {
+          b.classList.add('no'); b.disabled=true;
+          if(q.m===30 && o[1]===30) setFb('半點時，短針在'+q.h+'和'+nextHour(q.h,1)+'中間，要看小的數字'+q.h+'，是'+q.h+'點半。',false);
+          else if(q.m===30) setFb('長針指著6，是半點喔！',false);
+          else if(o[1]===30) setFb('長針指著12，是整點喔！',false);
+          else setFb('短針短、長針長。短針指著'+q.h+'，是'+q.h+'點。',false);
+        }
+      });
+      $('choices').appendChild(b);
+    });
+  }
+
+  function finish(){
+    var m=app.mode, r=app.correct/m.n;
+    var stars = r>=0.9?3 : r>=0.7?2 : r>=0.4?1 : 0;
+    saveStars(m.id,stars); submitRecord(m, app.correct, m.n, stars);
+    show('result');
+    $('res-stars').innerHTML='★★★'.slice(0,stars)+'<span style="opacity:.25">'+'★★★'.slice(0,3-stars)+'</span>';
+    $('res-title').innerHTML=az(stars===3?'太棒了！':stars>=1?'很不錯！':'加油，再試一次！');
+    $('res-sub').innerHTML=az('第一次就答對 '+app.correct+' 題，共 '+m.n+' 題。');
+    say(stars===3?'太棒了！':stars>=1?'很不錯！':'加油，再試一次！');
+  }
+
+  /* ================= wiring ================= */
+  function applyZy(){ document.body.classList.toggle('zy-off',!zyPref()); $('btn-zy').innerHTML=az('注音')+'：'+az(zyPref()?'開':'關'); }
+  $('btn-zy').addEventListener('click',function(){ lsSet('nf_zy',zyPref()?'0':'1'); applyZy(); });
+  $('btn-back').addEventListener('click',function(){ if(app.clock) app.clock.destroy(); try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} renderHub(); show('hub'); });
+  $('btn-say').addEventListener('click',function(){ say(lastSay); });
+  $('btn-full').addEventListener('click',function(){ var d=document.documentElement; if(!document.fullscreenElement){ d.requestFullscreen&&d.requestFullscreen(); } else { document.exitFullscreen&&document.exitFullscreen(); } });
+  $('btn-again').addEventListener('click',function(){ start(app.mode); });
+  $('btn-hub').addEventListener('click',function(){ renderHub(); show('hub'); });
+  $('lnk-home').innerHTML=az('返回');
+  $('btn-back').innerHTML=az('返回');
+  $('btn-again').innerHTML=az('再玩一次');
+  $('btn-hub').innerHTML=az('選別的');
+  applyZy(); renderHub();
+})();
+</script>
+</body>
+</html>
