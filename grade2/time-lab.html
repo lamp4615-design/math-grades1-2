@@ -1,0 +1,1510 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>時間操作室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2140; --ink-soft:#5b527a; --bg:#fbf6e9; --bg2:#eef5e6;
+    --card:#ffffff; --card-border:#e7ded0; --accent:#ff6b4a; --accent-ink:#ffffff;
+    --accent2:#2f9e8f; --gold:#f2a516; --wrong:#d93a3f; --right:#23804a;
+    --face:#fffdf7; --hour:#2b2140; --minute:#ff6b4a; --tick:#8a809f;
+    --am:#fff1c9; --noon:#ffd9a8; --pm:#d9ecff; --mark:#ffe08a; --mark2:#bfe8df;
+    --shadow: 0 6px 0 rgba(43,33,64,0.08), 0 10px 24px rgba(43,33,64,0.10);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#f1ece0; --ink-soft:#c9c2df; --bg:#1b2420; --bg2:#212c26;
+      --card:#26332c; --card-border:#3a4a40; --accent:#ff8a68; --accent-ink:#26170f;
+      --accent2:#4bc2b0; --gold:#ffc45e; --wrong:#ff7b7f; --right:#57d17f;
+      --face:#1f2a24; --hour:#f1ece0; --minute:#ff8a68; --tick:#9a94b0;
+      --am:#4a4226; --noon:#5c4026; --pm:#26405c; --mark:#6d5a1c; --mark2:#1f5a50;
+      --shadow: 0 6px 0 rgba(0,0,0,0.25), 0 10px 24px rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Baloo 2","PingFang TC","Microsoft JhengHei","Heiti TC",-apple-system,sans-serif;
+    padding:16px 16px 40px; line-height:1.8;
+  }
+  h1,h2,h3{ margin:0; text-wrap:balance; }
+  p{ margin:0; }
+  ruby{ ruby-position:inter-character; }
+  rt{ font-size:0.62em; color:var(--ink-soft); font-weight:700; user-select:none; margin-inline-start:1px; }
+  body.zy-off rt{ display:none; }
+  .btn{
+    font-family:inherit; font-weight:700; font-size:17px; border-radius:14px;
+    padding:10px 18px; cursor:pointer; background:var(--card); color:var(--ink);
+    border:2px solid var(--card-border); box-shadow:var(--shadow); transition:transform .08s ease;
+    text-decoration:none; display:inline-block;
+  }
+  .btn:active{ transform:translateY(3px); box-shadow:none; }
+  .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .btn.small{ font-size:15px; padding:6px 12px; }
+  .btn:focus-visible, .mode:focus-visible, .box:focus-visible, .day:focus-visible, .tl-node:focus-visible, .m-item:focus-visible{ outline:3px solid var(--accent2); outline-offset:2px; }
+  .btn[disabled]{ opacity:.45; cursor:default; }
+  #app{ max-width:980px; margin:0 auto; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .topbar .who{ font-size:14px; color:var(--ink-soft); }
+  .topbar .who a{ color:var(--accent2); }
+  .hero{ background:linear-gradient(135deg,var(--bg2),var(--bg)); border:2px solid var(--card-border);
+    border-radius:22px; padding:20px; margin-bottom:18px; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .hero h1{ font-size:clamp(26px,5vw,36px); font-weight:800; }
+  .hero .sub{ color:var(--ink-soft); font-size:16px; margin-top:6px; line-height:2.1; }
+  .hero .mascot{ font-size:64px; line-height:1; }
+  .group-title{ font-size:20px; font-weight:800; margin:18px 0 10px; }
+  .modes{ display:grid; grid-template-columns:1fr; gap:14px; }
+  @media (min-width:560px){ .modes{ grid-template-columns:1fr 1fr; } }
+  .mode{ text-align:left; display:flex; gap:14px; align-items:flex-start; background:var(--card);
+    border:2px solid var(--card-border); border-radius:20px; padding:16px; cursor:pointer; color:var(--ink);
+    box-shadow:var(--shadow); font-family:inherit; font-size:16px; }
+  .mode:active{ transform:translateY(3px); box-shadow:none; }
+  .mode .ic{ font-size:38px; line-height:1; }
+  .mode .t{ font-size:20px; font-weight:800; display:block; }
+  .mode .d{ font-size:15px; color:var(--ink-soft); display:block; line-height:2; }
+  .mode .stars{ color:var(--gold); font-size:18px; display:block; margin-top:2px; }
+  .tip{ margin-top:18px; background:var(--card); border:2px dashed var(--card-border); border-radius:16px; padding:14px 16px; font-size:15px; color:var(--ink-soft); line-height:2.1; }
+  .tip small{ font-size:13px; display:block; line-height:1.8; margin-top:4px; }
+
+  .play{ background:var(--card); border:2px solid var(--card-border); border-radius:22px; padding:16px; box-shadow:var(--shadow); }
+  .play-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .progress{ font-weight:800; color:var(--ink-soft); }
+  .prompt{ font-size:clamp(20px,3.6vw,25px); font-weight:800; text-align:center; margin:6px 0 2px; line-height:2.2; }
+  .hint{ text-align:center; color:var(--ink-soft); font-size:16px; min-height:1.6em; line-height:2.1; }
+  .stage{ display:grid; grid-template-columns:1fr; gap:14px; margin-top:8px; align-items:start; }
+  @media (min-width:780px){ .stage{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); } .stage.wide{ grid-template-columns:1fr; } }
+  .side{ display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .side > *:empty{ display:none; }
+  .clock-wrap{ display:flex; justify-content:center; }
+  svg.clock{ width:min(80vw,360px); height:auto; touch-action:none; user-select:none; cursor:grab; display:block; }
+  svg.clock.big{ width:min(86vw,440px); }
+  svg.clock.mini{ width:100%; max-width:170px; cursor:default; touch-action:auto; pointer-events:none; }
+  svg.clock:focus-visible{ outline:4px solid var(--accent2); outline-offset:4px; border-radius:50%; }
+  svg.clock.locked{ cursor:default; touch-action:auto; }
+  .readout{ text-align:center; font-size:26px; font-weight:800; line-height:2.1; display:flex; gap:12px; justify-content:center; align-items:center; flex-wrap:wrap; }
+  @media (max-width:480px){ .readout{ font-size:21px; } }
+  .digital{ font-family:ui-monospace,"Cascadia Mono",Consolas,monospace; font-variant-numeric:tabular-nums; font-weight:800;
+    background:#17211c; color:#8cf5b4; border-radius:10px; padding:2px 14px; letter-spacing:1px; border:3px solid #3a4a40; display:inline-block; line-height:1.5; }
+  .info{ font-size:17px; font-weight:700; color:var(--ink); background:var(--bg2); border-radius:14px; padding:8px 14px; line-height:2.1; }
+  .ctl-group{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
+  .ctl-label{ font-weight:800; font-size:15px; min-width:3.2em; text-align:right; }
+  .ctl-label.min{ color:var(--minute); } .ctl-label.hr{ color:var(--hour); }
+  .controls{ display:flex; flex-direction:column; gap:8px; }
+  .row{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .choices{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .choice{ font-size:20px; min-width:112px; }
+  .choice.ok{ background:var(--right); color:#fff; border-color:transparent; }
+  .choice.no{ background:var(--wrong); color:#fff; border-color:transparent; }
+  .choice.sel{ border-color:var(--accent2); background:var(--mark2); }
+  .fb{ text-align:center; font-size:18px; font-weight:800; line-height:2.2; }
+  .fb.ok{ color:var(--right); } .fb.no{ color:var(--wrong); }
+  .prompt,.hint,.info,.fb{ text-wrap:pretty; }
+
+  /* answer pad */
+  .ansline{ display:flex; gap:6px; justify-content:center; align-items:center; font-size:22px; font-weight:800; flex-wrap:wrap; }
+  .box{ min-width:68px; height:54px; font-family:inherit; font-size:28px; font-weight:800; background:var(--face); color:var(--ink);
+    border:3px solid var(--card-border); border-radius:12px; cursor:pointer; padding:0 8px; }
+  .box.active{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent); }
+  .keypad{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; max-width:360px; margin:8px auto 0; }
+  .keypad .btn{ padding:8px 0; font-size:21px; box-shadow:none; }
+  .keypad .btn.ok-key{ grid-column:span 4; font-size:18px; }
+
+  /* timeline */
+  .timeline{ margin-top:12px; }
+  .tl-zones{ display:grid; grid-template-columns:repeat(13,minmax(0,1fr)); text-align:center; font-weight:800; font-size:14px; }
+  .tl-zones span{ padding:2px 0; line-height:2; white-space:nowrap; overflow:hidden; }
+  .z-am{ grid-column:span 6; background:var(--am); border-radius:10px 0 0 0; }
+  .z-noon{ background:var(--noon); }
+  .z-pm{ grid-column:span 6; background:var(--pm); border-radius:0 10px 0 0; }
+  .tl-nodes{ display:grid; grid-template-columns:repeat(13,minmax(0,1fr)); border:2px solid var(--card-border); border-top:0; border-radius:0 0 10px 10px; overflow:hidden; }
+  .tl-node{ font-family:inherit; font-weight:800; font-size:16px; color:var(--ink); padding:6px 0 4px; background:var(--card); border:0; border-right:1px solid var(--card-border); cursor:pointer; min-height:56px; display:flex; flex-direction:column; align-items:center; gap:0; line-height:1.3; }
+  .tl-node:last-child{ border-right:0; }
+  .tl-node .flag{ font-size:14px; min-height:20px; }
+  .tl-node.walked{ background:var(--mark2); }
+  .tl-node.cur{ background:var(--accent); color:var(--accent-ink); }
+  .fingers{ text-align:center; font-size:18px; font-weight:800; color:var(--accent2); min-height:1.8em; line-height:2; }
+
+  /* calendar */
+  .cals{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+  .cal{ background:var(--face); border:2px solid var(--card-border); border-radius:14px; padding:8px; width:min(100%,340px); flex:1 1 260px; max-width:360px; }
+  .cal-t{ text-align:center; font-weight:800; font-size:18px; }
+  .cal-g{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; }
+  .cal-h{ text-align:center; font-weight:800; font-size:14px; color:var(--ink-soft); }
+  .cal-h.sun,.day.sun{ color:#d43c3c; }
+  .cal-h.sat,.day.sat{ color:#2a72c9; }
+  .day{ position:relative; font-family:inherit; font-size:16px; font-weight:700; color:var(--ink); height:40px; border:0; background:transparent; border-radius:9px; cursor:pointer; padding:0; }
+  button.day:hover{ background:var(--bg2); }
+  div.day{ cursor:default; }
+  .day.mk{ background:var(--mark); color:var(--ink); }
+  .day.mk2{ background:var(--mark2); color:var(--ink); }
+  .day.circled{ outline:3px solid var(--accent); outline-offset:-3px; border-radius:50%; }
+  .day.no{ background:var(--wrong); color:#fff; }
+  .day .n{ position:absolute; right:1px; top:-3px; font-size:11px; line-height:1.2; font-weight:800; color:var(--accent); }
+  @media (prefers-color-scheme: dark){ .cal-h.sun,.day.sun{ color:#ff8d8d; } .cal-h.sat,.day.sat{ color:#8ec1ff; } .day.mk,.day.mk2{ color:var(--ink); } }
+  .month-tabs{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; }
+  @media (min-width:420px){ .month-tabs{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .mtab{ font-family:inherit; font-weight:800; border:2px solid var(--card-border); background:var(--card); color:var(--ink); border-radius:10px; padding:3px 0; cursor:pointer; line-height:1.5; font-size:15px; }
+  .mtab small{ display:block; font-size:13px; color:var(--ink-soft); font-weight:700; }
+  .mtab.on{ background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .mtab.on small{ color:var(--accent-ink); }
+  .week-rows{ display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .week-row{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:center; }
+  .week-row b{ margin-right:6px; }
+  .wd{ width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:var(--mark); font-weight:800; }
+
+  /* match */
+  .match{ position:relative; max-width:640px; margin:0 auto; }
+  .m-row{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .m-gap{ height:64px; }
+  .m-lines{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+  .m-item{ font-family:inherit; background:var(--face); border:3px solid var(--card-border); border-radius:16px; padding:8px; cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center; min-height:64px; font-size:clamp(17px,3.6vw,23px); font-weight:800; }
+  .m-item.sel{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent); }
+  .m-item.done{ border-color:var(--right); cursor:default; }
+  .m-item.bad{ border-color:var(--wrong); animation:shake .35s; }
+  @keyframes shake{ 25%{ transform:translateX(-5px);} 75%{ transform:translateX(5px);} }
+
+  .result{ text-align:center; padding:20px 10px; }
+  .result .big-stars{ font-size:52px; color:var(--gold); letter-spacing:6px; line-height:1.3; }
+  .result h2{ font-size:28px; margin-top:6px; }
+  .result p{ color:var(--ink-soft); font-size:18px; margin-top:8px; line-height:2.1; }
+  .notes{ text-align:left; max-width:520px; margin:12px auto 0; background:var(--bg2); border-radius:14px; padding:10px 16px; font-size:17px; font-weight:700; line-height:2.1; }
+  .notes:empty{ display:none; }
+  .hidden{ display:none !important; }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <a class="btn small" href="index.html" id="lnk-home"></a>
+    <span class="who" id="who"></span>
+    <span>
+      <button class="btn small" id="btn-sound"></button>
+      <button class="btn small" id="btn-zy"></button>
+    </span>
+  </div>
+
+  <section id="hub">
+    <div class="hero">
+      <div>
+        <h1 id="hub-title"></h1>
+        <p class="sub" id="hub-sub"></p>
+      </div>
+      <div class="mascot" aria-hidden="true">⏰</div>
+    </div>
+    <div id="groups"></div>
+    <p class="tip" id="hub-tip"></p>
+  </section>
+
+  <section id="play" class="play hidden">
+    <div class="play-head">
+      <button class="btn small" id="btn-back"></button>
+      <span class="progress" id="progress" aria-live="polite"></span>
+      <span>
+        <button class="btn small" id="btn-say" title="唸題目" aria-label="唸題目">🔊</button>
+        <button class="btn small hidden" id="btn-full" title="全螢幕" aria-label="全螢幕">⛶</button>
+      </span>
+    </div>
+    <p class="prompt" id="prompt"></p>
+    <p class="hint" id="hint"></p>
+    <div class="stage" id="stage">
+      <div id="visual"></div>
+      <div class="side">
+        <div class="readout" id="readout" aria-live="polite"></div>
+        <div class="info" id="info"></div>
+        <div class="controls" id="controls"></div>
+        <div id="answer"></div>
+        <div class="choices" id="choices"></div>
+        <p class="fb" id="fb" aria-live="polite"></p>
+        <div class="row" id="help-row"></div>
+        <div class="row" id="next-row"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="play hidden">
+    <div class="result">
+      <div class="big-stars" id="res-stars"></div>
+      <h2 id="res-title"></h2>
+      <p id="res-sub"></p>
+      <div class="notes" id="res-notes"></div>
+      <div class="row" style="margin-top:18px">
+        <button class="btn primary" id="btn-retry"></button>
+        <button class="btn" id="btn-again"></button>
+        <button class="btn" id="btn-hub"></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= zhuyin（沿用一年級 clock-lab.html 的字典，並補上本頁用字） ================= */
+  var CHAR_ZY = {
+    "數":"ㄕㄨˇ","字":"ㄗˋ","森":"ㄙㄣ","林":"ㄌㄧㄣˊ","闖":"ㄔㄨㄤˇ","關":"ㄍㄨㄢ",
+    "一":"ㄧ","年":"ㄋㄧㄢˊ","級":"ㄐㄧˊ","樂":"ㄌㄜˋ","園":"ㄩㄢˊ","個":"ㄍㄜˋ","卡":"ㄎㄚˇ",
+    "起":"ㄑㄧˇ","玩":"ㄨㄢˊ","遊":"ㄧㄡˊ","戲":"ㄒㄧˋ","學":"ㄒㄩㄝˊ","已":"ㄧˇ","經":"ㄐㄧㄥ",
+    "得":"ㄉㄜˊ","到":"ㄉㄠˋ","顆":"ㄎㄜ","星":"ㄒㄧㄥ","共":"ㄍㄨㄥˋ","返":"ㄈㄢˇ","回":"ㄏㄨㄟˊ",
+    "地":"ㄉㄧˋ","圖":"ㄊㄨˊ","再":"ㄗㄞˋ","次":"ㄘˋ","下":"ㄒㄧㄚˋ","題":"ㄊㄧˊ","查":"ㄔㄚˊ",
+    "看":"ㄎㄢˋ","結":"ㄐㄧㄝˊ","果":"ㄍㄨㄛˇ","答":"ㄉㄚˊ","對":"ㄉㄨㄟˋ","了":"ㄌㄜ","太":"ㄊㄞˋ",
+    "棒":"ㄅㄤˋ","想":"ㄒㄧㄤˇ","正":"ㄓㄥˋ","確":"ㄑㄩㄝˋ","案":"ㄢˋ","是":"ㄕˋ","綠":"ㄌㄩˋ",
+    "色":"ㄙㄜˋ","的":"ㄉㄜ","第":"ㄉㄧˋ","多":"ㄉㄨㄛ","加":"ㄐㄧㄚ","油":"ㄧㄡˊ","你":"ㄋㄧˇ",
+    "會":"ㄏㄨㄟˋ","越":"ㄩㄝˋ","半":"ㄅㄢˋ","繼":"ㄐㄧˋ","續":"ㄒㄩˋ","很":"ㄏㄣˇ","不":"ㄅㄨˋ",
+    "錯":"ㄘㄨㄛˋ","喔":"ㄛ","快":"ㄎㄨㄞˋ","要":"ㄧㄠˋ","全":"ㄑㄩㄢˊ","部":"ㄅㄨˋ","小":"ㄒㄧㄠˇ",
+    "達":"ㄉㄚˊ","人":"ㄖㄣˊ","積":"ㄐㄧ","木":"ㄇㄨˋ","屋":"ㄨ","認":"ㄖㄣˋ","識":"ㄕˋ","以":"ㄧˇ",
+    "內":"ㄋㄟˋ","位":"ㄨㄟˋ","值":"ㄓˊ","大":"ㄉㄚˋ","冒":"ㄇㄠˋ","險":"ㄒㄧㄢˇ","分":"ㄈㄣ",
+    "辨":"ㄅㄧㄢˋ","十":"ㄕˊ","和":"ㄏㄢˋ","比":"ㄅㄧˇ","誰":"ㄕㄟˊ","決":"ㄐㄩㄝˊ","排":"ㄆㄞˊ",
+    "隊":"ㄉㄨㄟˋ","獎":"ㄐㄧㄤˇ","盃":"ㄅㄟ","順":"ㄕㄨㄣˋ","序":"ㄒㄩˋ","青":"ㄑㄧㄥ","蛙":"ㄨㄚ",
+    "跳":"ㄊㄧㄠˋ","法":"ㄈㄚˇ","減":"ㄐㄧㄢˇ","用":"ㄩㄥˋ","算":"ㄙㄨㄢˋ","閱":"ㄩㄝˋ","讀":"ㄉㄨˊ",
+    "理":"ㄌㄧˇ","解":"ㄐㄧㄝˇ","偵":"ㄓㄣ","探":"ㄊㄢˋ","故":"ㄍㄨˋ","事":"ㄕˋ","找":"ㄓㄠˇ",
+    "出":"ㄔㄨ","商":"ㄕㄤ","店":"ㄉㄧㄢˋ","買":"ㄇㄞˇ","東":"ㄉㄨㄥ","西":"ㄒㄧ","錢":"ㄑㄧㄢˊ",
+    "幣":"ㄅㄧˋ","練":"ㄌㄧㄢˋ","習":"ㄒㄧˊ","付":"ㄈㄨˋ","時":"ㄕˊ","鐘":"ㄓㄨㄥ","精":"ㄐㄧㄥ",
+    "靈":"ㄌㄧㄥˊ","懂":"ㄉㄨㄥˇ","整":"ㄓㄥˇ","點":"ㄉㄧㄢˇ","曆":"ㄌㄧˋ","尋":"ㄒㄩㄣˊ","寶":"ㄅㄠˇ",
+    "上":"ㄕㄤˋ","期":"ㄑㄧˊ","立":"ㄌㄧˋ","方":"ㄈㄤ","體":"ㄊㄧˇ","高":"ㄍㄠ","矮":"ㄞˇ",
+    "量":"ㄌㄧㄤˊ","長":"ㄔㄤˊ","短":"ㄉㄨㄢˇ","抓":"ㄓㄨㄚ","路":"ㄌㄨˋ","線":"ㄒㄧㄢˋ","走":"ㄗㄡˇ",
+    "哪":"ㄋㄚˇ","條":"ㄊㄧㄠˊ","較":"ㄐㄧㄠˋ","堆":"ㄉㄨㄟ","邊":"ㄅㄧㄢ","樣":"ㄧㄤˋ","右":"ㄧㄡˋ",
+    "左":"ㄗㄨㄛˇ","幾":"ㄐㄧˇ","每":"ㄇㄟˇ","片":"ㄆㄧㄢˋ","荷":"ㄏㄜˊ","葉":"ㄧㄝˋ","有":"ㄧㄡˇ",
+    "蘋":"ㄆㄧㄥˊ","又":"ㄧㄡˋ","摘":"ㄓㄞ","現":"ㄒㄧㄢˋ","原":"ㄩㄢˊ","本":"ㄅㄣˇ","氣":"ㄑㄧˋ",
+    "球":"ㄑㄧㄡˊ","媽":"ㄇㄚ","糖":"ㄊㄤˊ","吃":"ㄔ","掉":"ㄉㄧㄠˋ","還":"ㄏㄞˊ","剩":"ㄕㄥˋ",
+    "書":"ㄕㄨ","架":"ㄐㄧㄚˋ","借":"ㄐㄧㄝˋ","鉛":"ㄑㄧㄢ","筆":"ㄅㄧˇ","盒":"ㄏㄜˊ","裡":"ㄌㄧˇ",
+    "枝":"ㄓ","今":"ㄐㄧㄣ","天":"ㄊㄧㄢ","她":"ㄊㄚ","給":"ㄍㄟˇ","同":"ㄊㄨㄥˊ","請":"ㄑㄧㄥˇ",
+    "問":"ㄨㄣˋ","班":"ㄅㄢ","女":"ㄋㄩˇ","生":"ㄕㄥ","男":"ㄋㄢˊ","其":"ㄑㄧˊ","中":"ㄓㄨㄥ",
+    "假":"ㄐㄧㄚˋ","沒":"ㄇㄟˊ","來":"ㄌㄞˊ","課":"ㄎㄜˋ","魚":"ㄩˊ","缸":"ㄍㄤ","紅":"ㄏㄨㄥˊ",
+    "黑":"ㄏㄟ","放":"ㄈㄤˋ","進":"ㄐㄧㄣˋ","元":"ㄩㄢˊ","爸":"ㄅㄚˋ","他":"ㄊㄚ","當":"ㄉㄤ",
+    "作":"ㄗㄨㄛˋ","勵":"ㄌㄧˋ","操":"ㄘㄠ","場":"ㄔㄤˇ","隻":"ㄓ","狗":"ㄍㄡˇ","在":"ㄗㄞˋ",
+    "牠":"ㄊㄚ","們":"ㄇㄣ","白":"ㄅㄞˊ","過":"ㄍㄨㄛˋ","兒":"ㄦ","跑":"ㄆㄠˇ","彈":"ㄉㄢˋ",
+    "珠":"ㄓㄨ","兩":"ㄌㄧㄤˇ","張":"ㄓㄤ","貼":"ㄊㄧㄝ","紙":"ㄓˇ","拿":"ㄋㄚˊ","剛":"ㄍㄤ",
+    "好":"ㄏㄠˇ","款":"ㄎㄨㄢˇ","闆":"ㄅㄢˇ","謝":"ㄒㄧㄝˋ","囉":"ㄌㄛ","試":"ㄕˋ","夠":"ㄍㄡˋ",
+    "麵":"ㄇㄧㄢˋ","包":"ㄅㄠ","汁":"ㄓ","蠟":"ㄌㄚˋ","記":"ㄐㄧˋ","偶":"ㄡˇ","具":"ㄐㄩˋ",
+    "巴":"ㄅㄚ","士":"ㄕˋ","厲":"ㄌㄧˋ","害":"ㄏㄞˋ","都":"ㄉㄡ","就":"ㄐㄧㄡˋ","購":"ㄍㄡˋ",
+    "物":"ㄨˋ","成":"ㄔㄥˊ","功":"ㄍㄨㄥ","面":"ㄇㄧㄢˋ","月":"ㄩㄝˋ","日":"ㄖˋ","隔":"ㄍㄜˊ",
+    "疊":"ㄉㄧㄝˊ","緞":"ㄉㄨㄢˋ","帶":"ㄉㄞˋ","迴":"ㄏㄨㄟˊ","紋":"ㄨㄣˊ","針":"ㄓㄣ","步":"ㄅㄨˋ",
+    "明":"ㄇㄧㄥˊ","美":"ㄇㄟˇ","華":"ㄏㄨㄚˊ","阿":"ㄚ","強":"ㄑㄧㄤˊ","芳":"ㄈㄤ","傑":"ㄐㄧㄝˊ",
+    "妹":"ㄇㄟˋ","弟":"ㄉㄧˋ","二":"ㄦˋ","三":"ㄙㄢ","四":"ㄙˋ","五":"ㄨˇ","六":"ㄌㄧㄡˋ",
+    "七":"ㄑㄧ","八":"ㄅㄚ","九":"ㄐㄧㄡˇ","注":"ㄓㄨˋ","音":"ㄧㄣ","開":"ㄎㄞ","尺":"ㄔˇ",
+    "少":"ㄕㄠˇ","老":"ㄌㄠˇ","這":"ㄓㄜˋ","重":"ㄔㄨㄥˊ","清":"ㄑㄧㄥ","空":"ㄎㄨㄥ",
+    "目":"ㄇㄨˋ","前":"ㄑㄧㄢˊ","彎":"ㄨㄢ","曲":"ㄑㄩ","格":"ㄍㄜˊ","差":"ㄔㄚˋ","從":"ㄘㄨㄥˊ",
+    "搬":"ㄅㄢ","家":"ㄐㄧㄚ","號":"ㄏㄠˋ","被":"ㄅㄟˋ","移":"ㄧˊ","動":"ㄉㄨㄥˋ","別":"ㄅㄧㄝˊ",
+    "甲":"ㄐㄧㄚˇ","乙":"ㄧˇ","丙":"ㄅㄧㄥˇ","間":"ㄐㄧㄢ","另":"ㄌㄧㄥˋ","最":"ㄗㄨㄟˋ",
+    "新":"ㄒㄧㄣ","馬":"ㄇㄚˇ","說":"ㄕㄨㄛ","也":"ㄧㄝˇ","能":"ㄋㄥˊ",
+    "姓":"ㄒㄧㄥˋ","名":"ㄇㄧㄥˊ","選":"ㄒㄩㄢˇ","擇":"ㄗㄜˊ","始":"ㄕˇ","歡":"ㄏㄨㄢ","迎":"ㄧㄥˊ",
+    "先":"ㄒㄧㄢ","登":"ㄉㄥ","入":"ㄖㄨˋ","直":"ㄓˊ","師":"ㄕ","專":"ㄓㄨㄢ","設":"ㄕㄜˋ","定":"ㄉㄧㄥˋ",
+    "資":"ㄗ","料":"ㄌㄧㄠˋ","網":"ㄨㄤˇ","址":"ㄓˇ","儲":"ㄔㄨˊ","存":"ㄘㄨㄣˊ","連":"ㄌㄧㄢˊ",
+    "送":"ㄙㄨㄥˋ","失":"ㄕ","敗":"ㄅㄞˋ","切":"ㄑㄧㄝˋ",
+    "例":"ㄌㄧˋ","如":"ㄖㄨˊ","取":"ㄑㄩˇ","單":"ㄉㄢ","填":"ㄊㄧㄢˊ","寫":"ㄒㄧㄝˇ","尚":"ㄕㄤˋ","未":"ㄨㄟˋ",
+    "往":"ㄨㄤˇ","倒":"ㄉㄠˋ","退":"ㄊㄨㄟˋ","規":"ㄍㄨㄟ","律":"ㄌㄩˋ","份":"ㄈㄣˋ",
+    "身":"ㄕㄣ","站":"ㄓㄢˋ","箱":"ㄒㄧㄤ","子":"ㄗ","段":"ㄉㄨㄢˋ","玉":"ㄩˋ","智":"ㄓˋ",
+    "葵":"ㄎㄨㄟˊ","光":"ㄍㄨㄤ","丁":"ㄉㄧㄥ","刻":"ㄎㄜˋ","可":"ㄎㄜˇ","早":"ㄗㄠˇ","餐":"ㄘㄢ",
+    "午":"ㄨˇ","晚":"ㄨㄢˇ","睡":"ㄕㄨㄟˋ","覺":"ㄐㄧㄠˋ","國":"ㄍㄨㄛˊ","慶":"ㄑㄧㄥˋ","煙":"ㄧㄢ",
+    "火":"ㄏㄨㄛˇ","校":"ㄒㄧㄠˋ","運":"ㄩㄣˋ","那":"ㄋㄚˋ","合":"ㄏㄜˊ",
+    "與":"ㄩˇ","計":"ㄐㄧˋ","形":"ㄒㄧㄥˊ","活":"ㄏㄨㄛˊ","換":"ㄏㄨㄢˋ","交":"ㄐㄧㄠ",
+    "板":"ㄅㄢˇ","接":"ㄐㄧㄝ","平":"ㄆㄧㄥˊ","版":"ㄅㄢˇ","基":"ㄐㄧ","準":"ㄓㄨㄣˇ","只":"ㄓˇ"
+  };
+  var EXTRA_ZY = {
+    "公":"ㄍㄨㄥ","去":"ㄑㄩˋ","口":"ㄎㄡˇ","台":"ㄊㄞˊ","向":"ㄒㄧㄤˋ","圈":"ㄑㄩㄢ","孩":"ㄏㄞˊ",
+    "室":"ㄕˋ","幫":"ㄅㄤ","床":"ㄔㄨㄤˊ","影":"ㄧㄥˇ","後":"ㄏㄡˋ","怎":"ㄗㄣˇ","我":"ㄨㄛˇ",
+    "或":"ㄏㄨㄛˋ","手":"ㄕㄡˇ","才":"ㄘㄞˊ","把":"ㄅㄚˇ","投":"ㄊㄡˊ","指":"ㄓˇ","撥":"ㄅㄛ",
+    "檢":"ㄐㄧㄢˇ","滑":"ㄏㄨㄚˊ","由":"ㄧㄡˊ","盤":"ㄆㄢˊ","示":"ㄕˋ","績":"ㄐㄧ","自":"ㄗˋ",
+    "著":"˙ㄓㄜ","藏":"ㄘㄤˊ","訣":"ㄐㄩㄝˊ","變":"ㄅㄧㄢˋ","讓":"ㄖㄤˋ","跟":"ㄍㄣ","轉":"ㄓㄨㄢˇ",
+    "鍵":"ㄐㄧㄢˋ","門":"ㄇㄣˊ","顯":"ㄒㄧㄢˇ","飯":"ㄈㄢˋ","麼":"˙ㄇㄜ","鼠":"ㄕㄨˇ"
+  };
+  for(var _k in EXTRA_ZY) CHAR_ZY[_k]=EXTRA_ZY[_k];
+  var PHRASE_ZY = {
+    "數學":["ㄕㄨˋ","ㄒㄩㄝˊ"], "數字":["ㄕㄨˋ","ㄗˋ"], "一共":["ㄧˊ","ㄍㄨㄥˋ"],
+    "一樣":["ㄧˊ","ㄧㄤˋ"], "一次":["ㄧˊ","ㄘˋ"], "一個":["ㄧˊ","ㄍㄜ"], "一半":["ㄧˊ","ㄅㄢˋ"],
+    "一起":["ㄧˋ","ㄑㄧˇ"], "一題":["ㄧˋ","ㄊㄧˊ"], "一數":["ㄧˋ","ㄕㄨˇ"], "一堆":["ㄧˋ","ㄉㄨㄟ"],
+    "一量":["ㄧˋ","ㄌㄧㄤˊ"], "一比":["ㄧˋ","ㄅㄧˇ"], "一會":["ㄧˊ","ㄏㄨㄟˋ"], "一份":["ㄧˊ","ㄈㄣˋ"],
+    "不夠":["ㄅㄨˊ","ㄍㄡˋ"], "不錯":["ㄅㄨˊ","ㄘㄨㄛˋ"],
+    "一圈":["ㄧˋ","ㄑㄩㄢ"], "一格":["ㄧˋ","ㄍㄜˊ"], "一點":["ㄧˋ","ㄉㄧㄢˇ"], "一轉":["˙ㄧ","ㄓㄨㄢˇ"],
+    "撥得":["ㄅㄛ","˙ㄉㄜ"]
+  };
+  var TIME_ZY = {
+    "之":"ㄓ","亮":"ㄌㄧㄤˋ","什":"ㄕㄣˊ","令":"ㄌㄧㄥˋ","任":"ㄖㄣˋ","修":"ㄒㄧㄡ","候":"ㄏㄡˋ","做":"ㄗㄨㄛˋ","刪":"ㄕㄢ",
+    "務":"ㄨˋ","區":"ㄑㄩ","參":"ㄘㄢ","反":"ㄈㄢˇ","叔":"ㄕㄨˊ","司":"ㄙ","各":"ㄍㄜˋ","哥":"ㄍㄜ","嗎":"˙ㄇㄚ",
+    "域":"ㄩˋ","夏":"ㄒㄧㄚˋ","奶":"ㄋㄞˇ","姊":"ㄐㄧㄝˇ","姨":"ㄧˊ","它":"ㄊㄚ","完":"ㄨㄢˊ","容":"ㄖㄨㄥˊ","密":"ㄇㄧˋ",
+    "展":"ㄓㄢˇ","山":"ㄕㄢ","度":"ㄉㄨˋ","弄":"ㄋㄨㄥˋ","恩":"ㄣ","應":"ㄧㄥˋ","所":"ㄙㄨㄛˇ","打":"ㄉㄚˇ","拖":"ㄊㄨㄛ",
+    "按":"ㄢˋ","掃":"ㄙㄠˇ","文":"ㄨㄣˊ","旅":"ㄌㄩˇ","暑":"ㄕㄨˇ","李":"ㄌㄧˇ","束":"ㄕㄨˋ","楚":"ㄔㄨˇ","橘":"ㄐㄩˊ",
+    "民":"ㄇㄧㄣˊ","泳":"ㄩㄥˇ","洗":"ㄒㄧˇ","游":"ㄧㄡˊ","燙":"ㄊㄤˋ","營":"ㄧㄥˊ","爬":"ㄆㄚˊ","特":"ㄊㄜˋ","畫":"ㄏㄨㄚˋ",
+    "發":"ㄈㄚ","百":"ㄅㄞˇ","相":"ㄒㄧㄤ","真":"ㄓㄣ","知":"ㄓ","祕":"ㄇㄧˋ","範":"ㄈㄢˋ","粽":"ㄗㄨㄥˋ","糕":"ㄍㄠ",
+    "索":"ㄙㄨㄛˇ","置":"ㄓˋ","聲":"ㄕㄥ","舉":"ㄐㄩˇ","花":"ㄏㄨㄚ","菜":"ㄘㄞˋ","蛋":"ㄉㄢˋ","行":"ㄒㄧㄥˊ","親":"ㄑㄧㄣ",
+    "覽":"ㄌㄢˇ","貨":"ㄏㄨㄛˋ","賣":"ㄇㄞˋ","車":"ㄔㄜ","辦":"ㄅㄢˋ","道":"ㄉㄠˋ","鈕":"ㄋㄧㄡˇ","除":"ㄔㄨˊ","雄":"ㄒㄩㄥˊ",
+    "響":"ㄒㄧㄤˇ","頭":"ㄊㄡˊ","館":"ㄍㄨㄢˇ","髮":"ㄈㄚˇ","黃":"ㄏㄨㄤˊ"
+  };
+  for(var _t in TIME_ZY) CHAR_ZY[_t]=TIME_ZY[_t];
+  var TIME_PHRASE = {
+    "天數":["ㄊㄧㄢ","ㄕㄨˋ"], "出差":["ㄔㄨ","ㄔㄞ"], "一天":["ㄧˋ","ㄊㄧㄢ"], "一下":["ㄧˊ","ㄒㄧㄚˋ"],
+    "一列":["ㄧˊ","ㄌㄧㄝˋ"], "一小":["ㄧˋ","ㄒㄧㄠˇ"], 
+    "不要":["ㄅㄨˊ","ㄧㄠˋ"], "不是":["ㄅㄨˊ","ㄕˋ"],
+    "不同":["ㄅㄨˋ","ㄊㄨㄥˊ"], "相同":["ㄒㄧㄤ","ㄊㄨㄥˊ"], "奶奶":["ㄋㄞˇ","˙ㄋㄞ"], "哥哥":["ㄍㄜ","˙ㄍㄜ"],
+    "姊姊":["ㄐㄧㄝˇ","˙ㄐㄧㄝ"], "媽媽":["ㄇㄚ","˙ㄇㄚ"], "爸爸":["ㄅㄚˋ","˙ㄅㄚ"], "妹妹":["ㄇㄟˋ","˙ㄇㄟ"],
+    "弟弟":["ㄉㄧˋ","˙ㄉㄧ"], "叔叔":["ㄕㄨˊ","˙ㄕㄨ"], "阿姨":["ㄚ","ㄧˊ"], "畫畫":["ㄏㄨㄚˋ","ㄏㄨㄚˋ"],
+    "看看":["ㄎㄢˋ","˙ㄎㄢ"], "數數":["ㄕㄨˇ","ㄕㄨˇ"],
+    "第一":["ㄉㄧˋ","ㄧ"], "差一":["ㄔㄚ","ㄧˋ"], "差不":["ㄔㄚ","ㄅㄨˋ"], "不會":["ㄅㄨˊ","ㄏㄨㄟˋ"], "記得":["ㄐㄧˋ","˙ㄉㄜ"]
+  };
+  for(var _p in TIME_PHRASE) PHRASE_ZY[_p]=TIME_PHRASE[_p];
+  function az(text){
+    var out='', chars=Array.from(String(text)), i=0;
+    while(i<chars.length){
+      if(i+1<chars.length){
+        var two=chars[i]+chars[i+1];
+        if(PHRASE_ZY[two]){
+          out+='<ruby>'+chars[i]+'<rt>'+PHRASE_ZY[two][0]+'</rt></ruby><wbr>';
+          out+='<ruby>'+chars[i+1]+'<rt>'+PHRASE_ZY[two][1]+'</rt></ruby><wbr>';
+          i+=2; continue;
+        }
+      }
+      var ch=chars[i];
+      if(CHAR_ZY[ch]) out+='<ruby>'+ch+'<rt>'+CHAR_ZY[ch]+'</rt></ruby><wbr>';
+      else out+=ch;
+      i++;
+    }
+    return out;
+  }
+
+  /* ================= utils ================= */
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function pick(arr){ return arr[rand(0,arr.length-1)]; }
+  function shuffle(arr){ var a=arr.slice(); for(var i=a.length-1;i>0;i--){ var j=rand(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function mod(n,m){ return ((n%m)+m)%m; }
+  function $(id){ return document.getElementById(id); }
+  function pad2(n){ return (n<10?'0':'')+n; }
+  function hourOf(total){ var h=Math.floor(mod(Math.round(total),720)/60); return h===0?12:h; }
+  function minOf(total){ return mod(Math.round(total),60); }
+  function nextHour(h,n){ return mod(h-1+n,12)+1; }
+  function toTotal(h,m){ return (h%12)*60+m; }
+  function hmText(h,m){ return h+'點'+m+'分'; }
+  function digi(h,m){ return h+':'+pad2(m); }
+  function digiHtml(h,m){ return '<span class="digital">'+digi(h,m)+'</span>'; }
+  var reduceMotion=false;
+  try{ reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+
+  /* ================= storage / identity（與數感快手共用） ================= */
+  function lsGet(k,d){ try{ var v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function zyPref(){ return lsGet('nf_zy','1')!=='0'; }
+  function soundPref(){ return lsGet('tl_sound','1')!=='0'; }
+  function getIdentity(){ var c=lsGet('nf_class',''), n=lsGet('nf_name',''); return (c&&n)?{cls:c,name:n}:null; }
+  var DEFAULT_API_URL='https://script.google.com/macros/s/AKfycbymeX7KkuiscvkkPhIMr085r96sa3varVo_zXe7G5FUreDMBv77vRn-1xNCq86Ksb8NHw/exec';
+  function getApiUrl(){ var v=lsGet('nf_api',''); return (v&&v.trim())?v.trim():DEFAULT_API_URL; }
+  function submitRecord(mode,correct,total,stars){
+    var api=getApiUrl(), id=getIdentity();
+    if(!api||!id) return;
+    var payload={ className:id.cls, studentName:id.name, stageId:'timeLab-'+mode.id,
+      stageTitle:'時間操作室：'+mode.title, category:'time', correct:correct, total:total, stars:stars };
+    try{ fetch(api,{method:'POST',body:JSON.stringify(payload)}).catch(function(){}); }catch(e){}
+  }
+  function loadStars(id){ return parseInt(lsGet('tl_stars_'+id,'0'),10)||0; }
+  function saveStars(id,s){ if(s>loadStars(id)) lsSet('tl_stars_'+id,String(s)); }
+
+  /* ================= speech ================= */
+  var lastSay='';
+  function speak(text){
+    try{
+      if(!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text); u.lang='zh-TW'; u.rate=0.85;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function say(text){ lastSay=text; if(soundPref()) speak(text); }
+  function hush(){ try{ window.speechSynthesis&&window.speechSynthesis.cancel(); }catch(e){} }
+
+  /* ================= 計時器（離開題目時一起清掉） ================= */
+  var timers=[];
+  function later(fn,ms){ var id=setTimeout(fn,ms); timers.push(id); return id; }
+  function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+  /* ================= the clock（精確到 1 分鐘） ================= */
+  var SVGNS='http://www.w3.org/2000/svg';
+  function svgEl(tag,attrs){ var e=document.createElementNS(SVGNS,tag); for(var k in attrs) e.setAttribute(k,attrs[k]); return e; }
+  function angDiff(a,b){ var d=Math.abs(mod(a,360)-mod(b,360)); return d>180?360-d:d; }
+  function polar(r,deg){ var a=deg*Math.PI/180; return {x:150+r*Math.sin(a), y:150-r*Math.cos(a)}; }
+
+  function Clock(container,opts){
+    opts=opts||{};
+    var self=this;
+    this.total=opts.total||0;
+    this.locked=!!opts.locked;
+    this.onMove=opts.onMove||function(){};
+    this.onRelease=opts.onRelease||function(){};
+    var cls='clock'+(opts.big?' big':'')+(opts.mini?' mini':'')+(this.locked?' locked':'');
+    var svg=svgEl('svg',{viewBox:'0 0 300 300','class':cls,role:'img','aria-label':opts.label||'時鐘'});
+    if(!this.locked){ svg.setAttribute('tabindex','0'); svg.setAttribute('aria-label','時鐘。拖動長針或短針，左右鍵走 1 小格，上下鍵走 1 大格'); }
+    // 外圈分鐘刻度（5、10、15…60）
+    this.ring=svgEl('g',{style:'display:none'});
+    this.ring.appendChild(svgEl('circle',{cx:150,cy:150,r:176,style:'fill:var(--bg2);stroke:var(--card-border);','stroke-width':2}));
+    for(var q=1;q<=12;q++){
+      var rp=polar(160,q*30);
+      var rt=svgEl('text',{x:rp.x,y:rp.y+6,'text-anchor':'middle','font-size':17,style:"fill:var(--minute);font-family:'Baloo 2',sans-serif;font-weight:800;"});
+      rt.textContent=q*5; this.ring.appendChild(rt);
+    }
+    svg.appendChild(this.ring);
+    svg.appendChild(svgEl('circle',{cx:150,cy:150,r:142,style:'fill:var(--face);stroke:var(--ink);','stroke-width':6}));
+    this.sectorEl=svgEl('path',{d:'',style:'fill:var(--accent2);opacity:.2;'});
+    svg.appendChild(this.sectorEl);
+    this.ticks=[];
+    for(var i=0;i<60;i++){
+      var major=i%5===0, p1=polar(major?120:127,i*6), p2=polar(135,i*6);
+      var line=svgEl('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,style:'stroke:var(--tick);','stroke-width':major?4:2,'stroke-linecap':'round'});
+      svg.appendChild(line); this.ticks.push(line);
+    }
+    for(var n=1;n<=12;n++){
+      var np=polar(101,n*30);
+      var t=svgEl('text',{x:np.x,y:np.y+10,'text-anchor':'middle','font-size':28,style:"fill:var(--ink);font-family:'Baloo 2',sans-serif;font-weight:800;"});
+      t.textContent=n; svg.appendChild(t);
+    }
+    this.hourHand=svgEl('line',{x1:150,y1:150,x2:150,y2:90,style:'stroke:var(--hour);','stroke-width':12,'stroke-linecap':'round'});
+    this.minHand=svgEl('line',{x1:150,y1:150,x2:150,y2:36,style:'stroke:var(--minute);','stroke-width':6,'stroke-linecap':'round'});
+    this.minKnob=svgEl('circle',{cx:150,cy:36,r:10,style:'fill:var(--minute);opacity:.9;'});
+    svg.appendChild(this.hourHand); svg.appendChild(this.minHand);
+    if(!this.locked) svg.appendChild(this.minKnob);
+    svg.appendChild(svgEl('circle',{cx:150,cy:150,r:9,style:'fill:var(--ink);'}));
+    container.innerHTML=''; container.appendChild(svg);
+    this.svg=svg;
+    this.setRing(!!opts.ring);
+    this.render();
+    if(this.locked) return;
+
+    var dragging=null;
+    function pointer(ev){
+      var r=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal.width, s=vb/r.width;
+      var x=(ev.clientX-(r.left+r.width/2))*s, y=(ev.clientY-(r.top+r.height/2))*s;
+      var deg=Math.atan2(x,-y)*180/Math.PI; if(deg<0) deg+=360;
+      return {deg:deg,dist:Math.sqrt(x*x+y*y)};
+    }
+    function followMinute(deg){
+      var d=deg/6-mod(self.total,60);
+      if(d>30) d-=60; if(d<-30) d+=60;
+      self.moveTo(self.total+d);
+    }
+    function followHour(deg){
+      // 短針一次走 1 大格（＝1 小時），長針停在原本的分，這樣撥點不會弄亂已撥好的分
+      var hd=mod(self.total,720)/2, d=deg-hd;
+      if(d>180) d-=360; if(d<-180) d+=360;
+      var steps=Math.round(d/30);
+      if(steps) self.moveTo(self.total+steps*60);
+    }
+    svg.addEventListener('pointerdown',function(ev){
+      if(self.locked) return;
+      var p=pointer(ev);
+      if(p.dist<14) return;
+      self.stop();
+      var hd=angDiff(p.deg,mod(self.total,720)/2), md=angDiff(p.deg,mod(self.total,60)*6);
+      dragging=(p.dist<92 && hd<28 && hd<=md) ? 'hour' : 'minute';
+      try{ svg.setPointerCapture(ev.pointerId); }catch(e){}
+      svg.style.cursor='grabbing';
+      if(dragging==='minute') followMinute(p.deg); else followHour(p.deg);
+      ev.preventDefault();
+    });
+    svg.addEventListener('pointermove',function(ev){
+      if(!dragging) return;
+      var p=pointer(ev);
+      if(dragging==='minute') followMinute(p.deg); else followHour(p.deg);
+    });
+    function end(){ if(!dragging) return; dragging=null; svg.style.cursor=''; self.snap(); self.onRelease(self.total); }
+    svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
+    svg.addEventListener('keydown',function(ev){
+      if(self.locked) return;
+      var d={ArrowRight:1,ArrowLeft:-1,ArrowUp:5,ArrowDown:-5}[ev.key];
+      if(d){ self.moveTo(Math.round(self.total)+d); self.onRelease(self.total); ev.preventDefault(); ev.stopPropagation(); }
+    });
+  }
+  Clock.prototype.moveTo=function(t){ this.total=t; this.render(); this.onMove(t); };
+  Clock.prototype.snap=function(){ this.total=Math.round(this.total); this.render(); this.onMove(this.total); };
+  Clock.prototype.render=function(){
+    var mp=polar(114,mod(this.total,60)*6), hp=polar(64,mod(this.total,720)/2);
+    this.minHand.setAttribute('x2',mp.x); this.minHand.setAttribute('y2',mp.y);
+    this.minKnob.setAttribute('cx',mp.x); this.minKnob.setAttribute('cy',mp.y);
+    this.hourHand.setAttribute('x2',hp.x); this.hourHand.setAttribute('y2',hp.y);
+  };
+  Clock.prototype.setRing=function(on){
+    this.ringOn=on;
+    this.ring.style.display=on?'':'none';
+    this.svg.setAttribute('viewBox',on?'-30 -30 360 360':'0 0 300 300');
+  };
+  // 亮起短針正在經過的那一區（h 和下一個數字之間）
+  Clock.prototype.sector=function(h){
+    if(!h){ this.sectorEl.setAttribute('d',''); return; }
+    var a=polar(118,(h%12)*30), b=polar(118,(h%12+1)*30);
+    this.sectorEl.setAttribute('d','M150 150 L'+a.x+' '+a.y+' A118 118 0 0 1 '+b.x+' '+b.y+' Z');
+  };
+  // 把長針從 12 走過的 n 小格亮起來
+  Clock.prototype.markTicks=function(n){
+    for(var i=0;i<60;i++){
+      var on = i===0 ? n>=60 : i<=n;
+      this.ticks[i].style.stroke=on?'var(--accent)':'var(--tick)';
+      this.ticks[i].setAttribute('stroke-width', on?5:(i%5===0?4:2));
+    }
+  };
+  Clock.prototype.clearMarks=function(){ this.markTicks(0); this.sector(0); };
+  Clock.prototype.stop=function(){ if(this.animId) clearTimeout(this.animId); this.animId=null; };
+  Clock.prototype.destroy=function(){ this.stop(); this.locked=true; this.onMove=this.onRelease=function(){}; };
+  Clock.prototype.animateBy=function(delta,ms,done){
+    this.stop();
+    var self=this, start=Math.round(this.total), t0=Date.now();
+    if(reduceMotion){ this.moveTo(start+delta); if(done) done(); return; }
+    function step(){
+      var p=Math.min(1,(Date.now()-t0)/ms), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      self.moveTo(start+delta*e);
+      if(p<1) self.animId=setTimeout(step,16);
+      else { self.animId=null; self.moveTo(start+delta); if(done) done(); }
+    }
+    this.animId=setTimeout(step,16);
+  };
+
+  /* ================= modes ================= */
+  var MODES=[
+    {id:'explore',group:'clock',icon:'🖐️',title:'鐘面探索',desc:'撥撥看長針和短針，找出大格和小格的祕密。',quiz:false},
+    {id:'read',group:'clock',icon:'👀',title:'讀鐘面',desc:'看鐘面，填出現在是幾點幾分。',quiz:true,n:10},
+    {id:'set',group:'clock',icon:'🎯',title:'撥時刻',desc:'題目說幾點幾分，你把時鐘撥出來。',quiz:true,n:8},
+    {id:'match',group:'clock',icon:'🔗',title:'數字鐘連連看',desc:'把一樣時刻的鐘面和數字鐘連起來。',quiz:true,n:5},
+    {id:'pass',group:'clock',icon:'⏩',title:'時間經過',desc:'上午、中午、下午，算算經過幾小時。',quiz:true,n:8},
+    {id:'calendar',group:'cal',icon:'🗓️',title:'月曆探索',desc:'看每個月有幾天，點日期數一數共幾天。',quiz:false},
+    {id:'calquiz',group:'cal',icon:'🔍',title:'月曆任務',desc:'查月曆，找出星期幾、算出共幾天。',quiz:true,n:10}
+  ];
+  var NOTE_TEXT={
+    nexthour:'短針在兩個數字中間時，要看剛走過的那個數字。',
+    numAsMin:'長針指著數字幾，不是幾分喔！要用 5、10、15 這樣數。',
+    swap:'短針（時針）看點，長針（分針）看分。',
+    count:'數分的時候，先數大格（5、10、15），再一小格一小格數。',
+    digital:'數字鐘前面的數字是點，後面的數字是分。',
+    noon:'過了中午 12 點就是下午，下午 1 點接在 12 點後面。',
+    direction:'幾小時後，時間往後走；幾小時前，時間往前走。',
+    elapsed:'數經過幾小時，短針走 1 大格就是 1 小時。',
+    inclusive:'數共幾天的時候，開始的那一天也要算進去。',
+    monthDays:'看這個月最後一天是幾日，就知道這個月有幾天。',
+    weekday:'找到日期後往上看，最上面寫的就是星期幾。',
+    week:'1 星期有 7 天，連續 7 天就是 1 星期。'
+  };
+
+  var app={ mode:null, i:0, correct:0, clock:null, q:null, tries:0, queue:[], missed:[], errs:{}, retrying:false, pad:null, onResize:null };
+
+  function newClock(container,opts){ if(app.clock) app.clock.destroy(); app.clock=new Clock(container,opts); return app.clock; }
+  function show(id){ ['hub','play','result'].forEach(function(s){ $(s).classList.toggle('hidden',s!==id); }); window.scrollTo(0,0); }
+  function clearPlay(){
+    clearTimers();
+    if(app.clock){ app.clock.destroy(); app.clock=null; }
+    app.pad=null; app.onResize=null;
+    ['prompt','hint','visual','readout','info','controls','answer','choices','fb','help-row','next-row'].forEach(function(k){ $(k).innerHTML=''; });
+    $('fb').className='fb';
+    $('stage').className='stage';
+  }
+  function btn(label,cls,fn){ var b=document.createElement('button'); b.type='button'; b.className='btn '+(cls||''); b.innerHTML=label; b.addEventListener('click',fn); return b; }
+  function div(cls){ var d=document.createElement('div'); d.className=cls||''; return d; }
+  function setPrompt(text,speech){ $('prompt').innerHTML=az(text); say(speech||text); }
+  function setHint(text){ $('hint').innerHTML=text?az(text):''; }
+  function setFb(text,ok,tag){
+    var f=$('fb'); f.innerHTML=text?az(text):''; f.className='fb'+(text?(ok?' ok':' no'):'');
+    if(tag && !app.retrying) app.errs[tag]=(app.errs[tag]||0)+1;
+  }
+  function setInfo(html){ $('info').innerHTML=html||''; }
+  function setHelp(label,fn){ var r=$('help-row'); r.innerHTML=''; if(label) r.appendChild(btn(az(label),'',fn)); }
+
+  /* ================= 數字鍵盤 ================= */
+  function makePad(fields,onSubmit){
+    var vals=fields.map(function(){ return ''; }), active=0, boxes=[], host=$('answer');
+    host.innerHTML='';
+    var line=div('ansline');
+    fields.forEach(function(f,i){
+      var b=document.createElement('button'); b.type='button'; b.className='box';
+      b.setAttribute('aria-label','填'+f.unit);
+      b.addEventListener('click',function(){ active=i; refresh(); });
+      b.addEventListener('focus',function(){ active=i; refresh(); });
+      boxes.push(b); line.appendChild(b);
+      var s=document.createElement('span'); s.innerHTML=az(f.unit); line.appendChild(s);
+    });
+    host.appendChild(line);
+    var pad=div('keypad');
+    function press(d){
+      var f=fields[active], max=f.max||2;
+      if(vals[active].length>=max) vals[active]='';
+      vals[active]+=d;
+      // 點、月：2 以上不可能是兩位數，填完就跳到下一格
+      if(f.auto && active<fields.length-1 && (vals[active].length>=max || parseInt(vals[active],10)>=2)) active++;
+      refresh();
+    }
+    function back(){ vals[active]=vals[active].slice(0,-1); refresh(); }
+    function submit(){ onSubmit(vals.map(function(v){ return v===''?null:parseInt(v,10); })); }
+    function refresh(){
+      boxes.forEach(function(b,i){ b.textContent=vals[i]; b.classList.toggle('active',i===active); });
+    }
+    [1,2,3,4,5,6,7,8,9,0].forEach(function(d){
+      pad.appendChild(btn(String(d),'',function(){ press(String(d)); }));
+    });
+    var bk=btn('⌫','',back); bk.setAttribute('aria-label','刪除'); pad.appendChild(bk);
+    var okb=btn(az('寫好了'),'primary ok-key',submit); pad.appendChild(okb);
+    host.appendChild(pad);
+    refresh();
+    app.pad={
+      key:function(ev){
+        if(/^[0-9]$/.test(ev.key)){ press(ev.key); ev.preventDefault(); }
+        else if(ev.key==='Backspace'){ back(); ev.preventDefault(); }
+        else if(ev.key==='Enter'&&ev.target.tagName!=='BUTTON'){ submit(); ev.preventDefault(); }
+      },
+      clear:function(){ vals=fields.map(function(){ return ''; }); active=0; refresh(); }
+    };
+    return app.pad;
+  }
+  function closeAnswer(){ $('answer').innerHTML=''; app.pad=null; $('controls').innerHTML=''; setHelp(''); }
+
+  /* ================= hub ================= */
+  function renderHub(){
+    $('hub-title').innerHTML=az('時間操作室');
+    $('hub-sub').innerHTML=az('撥鐘面、查月曆，親手弄懂幾點幾分和年月日！');
+    var g=$('groups'); g.innerHTML='';
+    [['clock','⏰ 看鐘面'],['cal','📅 查月曆']].forEach(function(gr){
+      var h=document.createElement('h2'); h.className='group-title'; h.innerHTML=az(gr[1]); g.appendChild(h);
+      var box=div('modes');
+      MODES.filter(function(m){ return m.group===gr[0]; }).forEach(function(m){
+        var b=document.createElement('button'); b.type='button'; b.className='mode';
+        var s=m.quiz?loadStars(m.id):0;
+        b.innerHTML='<span class="ic" aria-hidden="true">'+m.icon+'</span><span><span class="t">'+az(m.title)+'</span><span class="d">'+az(m.desc)+'</span>'
+          +(m.quiz?'<span class="stars" aria-label="'+s+' 顆星">'+'★★★'.slice(0,s)+'<span style="opacity:.25">'+'★★★'.slice(0,3-s)+'</span></span>':'')+'</span>';
+        b.addEventListener('click',function(){ start(m); });
+        box.appendChild(b);
+      });
+      g.appendChild(box);
+    });
+    $('hub-tip').innerHTML=az('口訣：短針看點，長針看分。1大格是5分，1小格是1分。')
+      +'<small>老師上課時，可以用「鐘面探索」和「月曆探索」投影示範；鍵盤左右鍵走 1 小格、上下鍵走 1 大格。對應基本學習內容 NC-2-13-1、2 與 NC-2-14-1。</small>';
+    var id=getIdentity();
+    $('who').innerHTML=id ? az('你好，')+id.name+'（'+id.cls+'）' : az('還沒有登入，成績不會送出。')+' <a href="number-sense.html">'+az('去登入')+'</a>';
+  }
+
+  function start(m){
+    app.mode=m; app.i=0; app.correct=0; app.missed=[]; app.errs={}; app.retrying=false;
+    show('play');
+    $('btn-full').classList.toggle('hidden',m.quiz);
+    if(m.id==='explore') return startExplore();
+    if(m.id==='calendar') return startCalendarExplore();
+    app.queue=GEN[m.id]();
+    nextQuestion();
+  }
+  function retryMissed(){
+    app.queue=app.missed; app.missed=[]; app.i=0; app.correct=0; app.retrying=true;
+    show('play');
+    nextQuestion();
+  }
+  function nextQuestion(){
+    clearPlay();
+    if(app.i>=app.queue.length) return finish();
+    $('progress').innerHTML=az((app.retrying?'再練一次 ':'')+'第'+(app.i+1)+'題 / 共'+app.queue.length+'題');
+    app.tries=0;
+    app.q=app.queue[app.i];
+    ASK[app.q.kind](app.q);
+  }
+  function addNext(){
+    var r=$('next-row'); r.innerHTML='';
+    var b=btn(az(app.i+1>=app.queue.length?'看結果':'下一題'),'primary',function(){ app.i++; nextQuestion(); });
+    r.appendChild(b); b.focus({preventScroll:true});
+  }
+  function done(){
+    clearTimers();
+    if(app.tries<=1) app.correct++; else if(!app.retrying) app.missed.push(app.q);
+    closeAnswer(); addNext();
+  }
+
+  /* ================= 長短針操作按鈕 ================= */
+  function handControls(){
+    var c=$('controls'); c.innerHTML='';
+    function nudge(d){ return function(){ if(!app.clock) return; app.clock.stop(); app.clock.moveTo(Math.round(app.clock.total)+d); app.clock.onRelease(app.clock.total); }; }
+    var g1=div('ctl-group');
+    var l1=document.createElement('span'); l1.className='ctl-label min'; l1.innerHTML=az('長針'); g1.appendChild(l1);
+    g1.appendChild(btn('−1 '+az('大格'),'small',nudge(-5)));
+    g1.appendChild(btn('−1 '+az('小格'),'small',nudge(-1)));
+    g1.appendChild(btn('+1 '+az('小格'),'small',nudge(1)));
+    g1.appendChild(btn('+1 '+az('大格'),'small',nudge(5)));
+    c.appendChild(g1);
+    var g2=div('ctl-group');
+    var l2=document.createElement('span'); l2.className='ctl-label hr'; l2.innerHTML=az('短針'); g2.appendChild(l2);
+    g2.appendChild(btn('−1 '+az('大格'),'small',nudge(-60)));
+    g2.appendChild(btn('+1 '+az('大格'),'small',nudge(60)));
+    c.appendChild(g2);
+    return c;
+  }
+  function clockHost(){ var w=div('clock-wrap'); $('visual').appendChild(w); return w; }
+
+  /* ================= 鐘面探索 ================= */
+  function startExplore(){
+    clearPlay();
+    $('progress').innerHTML=az('鐘面探索');
+    setPrompt('拖動長針和短針，看看時間怎麼變！');
+    setHint('長針走1小格是1分鐘，走1大格是5分鐘。短針走1大格是1小時。');
+    var showAns=true;
+    var w=clockHost();
+    function upd(t){
+      var T=Math.round(t), h=hourOf(T), m=minOf(T);
+      if(!showAns){
+        $('readout').innerHTML=az('現在是幾點幾分？');
+        setInfo(''); app.clock.clearMarks(); return;
+      }
+      $('readout').innerHTML=az(hmText(h,m))+digiHtml(h,m);
+      app.clock.markTicks(m); app.clock.sector(m===0?0:h);
+      var big=Math.floor(m/5), small=m%5;
+      var minLine='長針（分針）'+(m===0?'指著12，是0分。':'從12走了'+(big?big+'大格':'')+(small?small+'小格':'')+'，是'+m+'分。');
+      var hrLine='短針（時針）'+(m===0?'指著'+h+'，是'+h+'點鐘。':'在'+h+'和'+nextHour(h,1)+'之間，是'+h+'點多。');
+      setInfo(az(minLine)+'<br>'+az(hrLine));
+    }
+    var c=newClock(w,{total:toTotal(3,0),big:true,ring:true,onMove:upd,onRelease:upd});
+    upd(c.total);
+    handControls();
+    var g=div('ctl-group');
+    g.appendChild(btn(az('長針走1圈'),'small primary',function(){ app.clock.animateBy(60,1600); setHint('長針走1圈是60小格，也就是60分鐘；短針剛好走1大格，就是1小時。'); }));
+    var rb=btn(az('藏起分鐘刻度'),'small',function(){ var on=!app.clock.ringOn; app.clock.setRing(on); rb.innerHTML=az(on?'藏起分鐘刻度':'顯示分鐘刻度'); });
+    g.appendChild(rb);
+    var ab=btn(az('藏起答案'),'small',function(){ showAns=!showAns; ab.innerHTML=az(showAns?'藏起答案':'顯示答案'); upd(app.clock.total); });
+    g.appendChild(ab);
+    g.appendChild(btn(az('回到3點'),'small',function(){ app.clock.stop(); app.clock.moveTo(toTotal(3,0)); setHint(''); }));
+    $('controls').appendChild(g);
+  }
+
+  /* ================= 讀鐘面 ================= */
+  function uniqueTimes(n,gen){
+    var seen={}, out=[], guard=0;
+    while(out.length<n && guard<500){ guard++; var t=gen(out.length); var k=t.h+':'+t.m; if(seen[k]) continue; seen[k]=1; out.push(t); }
+    return out;
+  }
+  function minuteFor(i){
+    if(i===0) return 0;                                   // 整點
+    if(i<=3) return pick([5,10,15,20,25,30,35,40,45,50,55]); // 長針指著數字
+    if(i<=5) return pick([rand(6,29),rand(31,49)]);       // 先算大格再算小格
+    if(i<=7) return rand(51,59);                          // 短針快到下一個數字
+    return pick([rand(1,4),rand(6,59)]);                  // 綜合
+  }
+  function genRead(){
+    return uniqueTimes(10,function(i){ return {kind:'read',h:rand(1,12),m:minuteFor(i)}; });
+  }
+  function explainRead(q){
+    var big=Math.floor(q.m/5), small=q.m%5, parts=[];
+    for(var k=1;k<=big;k++) parts.push(k*5);
+    for(var s=1;s<=small;s++) parts.push(big*5+s);
+    return parts;
+  }
+  function diagRead(q,H,M){
+    var nx=nextHour(q.h,1), pointed=q.m===0?12:Math.round(q.m/5);
+    if(H===q.m && M===q.h && q.h!==q.m) return {tag:'swap',text:'點和分寫反了。短針看點，長針看分。'};
+    if(H===pointed && H!==q.h && q.m%5===0) return {tag:'swap',text:'長針和短針看反了。短的是時針，看點；長的是分針，看分。'};
+    if(H!==q.h){
+      if(q.m===0) return {tag:'nexthour',text:'短針（時針）指著'+q.h+'，是'+q.h+'點。'};
+      if(H===nx) return {tag:'nexthour',text:'短針還沒走到'+nx+'喔！它在'+q.h+'和'+nx+'之間，是'+q.h+'點多。'};
+      return {tag:'nexthour',text:'看看短針：它在'+q.h+'和'+nx+'之間，要看剛走過的'+q.h+'。'};
+    }
+    if(q.m===0 && M===12) return {tag:'numAsMin',text:'長針指著12是0分，不是12分喔！'};
+    if(q.m%5===0 && M===q.m/5) return {tag:'numAsMin',text:'點對了！長針指著'+pointed+'，不是'+pointed+'分喔！1大格是5分，數數看：5、10、15……'};
+    if(q.m%5!==0 && M===Math.floor(q.m/5)) return {tag:'numAsMin',text:'點對了！長針不是看數字幾就是幾分，要先數大格：5、10、15……'};
+    if(Math.abs(M-q.m)<=2) return {tag:'count',text:'點對了，分差一點點！再一小格一小格數清楚。'};
+    return {tag:'count',text:'點對了！數分的時候，先數大格，再數小格。'};
+  }
+  function demoRead(q,done){
+    var c=app.clock; if(!c) return;
+    c.clearMarks();
+    c.sector(q.m===0?0:q.h);
+    var nx=nextHour(q.h,1);
+    var hrLine=q.m===0?'短針指著'+q.h+'，是'+q.h+'點。':'短針在'+q.h+'和'+nx+'之間，是'+q.h+'點。';
+    setInfo(az(hrLine));
+    var seq=explainRead(q), i=0;
+    function tick(){
+      if(!app.clock) return;
+      if(i>=seq.length){
+        setInfo(az(hrLine)+'<br>'+az('長針數到'+q.m+'，是'+q.m+'分。'));
+        if(done) done(); return;
+      }
+      var v=seq[i++]; c.markTicks(v);
+      setInfo(az(hrLine)+'<br>'+az('長針：'+seq.slice(0,i).join('、')+' 分'));
+      later(tick,reduceMotion?120:(v%5===0&&v<=Math.floor(q.m/5)*5?650:480));
+    }
+    later(tick,500);
+  }
+  function askRead(q){
+    setPrompt('鐘面上是幾點幾分？');
+    setHint('短針（時針）看點，長針（分針）看分。');
+    var c=newClock(clockHost(),{total:toTotal(q.h,q.m),locked:true,label:'請看鐘面，填出時刻'});
+    var pad=makePad([{unit:'點',auto:true},{unit:'分'}],function(v){
+      var H=v[0], M=v[1];
+      if(H===null) return setFb('先填幾點喔！',false);
+      if(M===null && q.m!==0) return setFb('還要填幾分喔！',false);
+      if(M===null) M=0;
+      app.tries++;
+      if(H===q.h && M===q.m){
+        c.sector(q.m===0?0:q.h); c.markTicks(q.m);
+        $('readout').innerHTML=az(hmText(q.h,q.m))+digiHtml(q.h,q.m);
+        setFb(app.tries===1?'答對了！':'對了！',true);
+        setInfo(''); done(); return;
+      }
+      var d=diagRead(q,H,M);
+      setFb(d.text,false,d.tag);
+      pad.clear();
+      setHelp('數給我看',function(){ setHelp(''); demoRead(q); });
+    });
+  }
+
+  /* ================= 撥時刻 ================= */
+  var SET_STORY=[
+    ['上午7點40分，妹妹出門上學。請撥出這個時刻。',7,40],
+    ['中午12點5分，開始吃午餐。請撥出這個時刻。',12,5],
+    ['下午3點55分，哥哥放學了。請撥出這個時刻。',3,55],
+    ['上午10點25分，下課鐘響了。請撥出這個時刻。',10,25],
+    ['下午4點18分，弟弟開始寫功課。請撥出這個時刻。',4,18],
+    ['上午9點37分，奶奶去買菜。請撥出這個時刻。',9,37]
+  ];
+  function genSet(){
+    return uniqueTimes(8,function(i){
+      if(i===2||i===5){ var s=pick(SET_STORY); return {kind:'set',text:s[0],h:s[1],m:s[2],ring:i<3}; }
+      var h=rand(1,12), m=i<3?pick([5,10,15,20,25,30,35,40,45,50,55]):(i<6?rand(1,59):rand(51,59));
+      if(i===3||i===6) return {kind:'set',digital:true,h:h,m:m,ring:false};
+      return {kind:'set',text:'請把時鐘撥到「'+hmText(h,m)+'」。',h:h,m:m,ring:i<3};
+    });
+  }
+  function askSet(q){
+    if(q.digital){
+      $('prompt').innerHTML=az('數字鐘顯示')+' '+digiHtml(q.h,q.m)+' '+az('，請撥出來。');
+      say('數字鐘顯示'+q.h+'點'+q.m+'分，請撥出來。');
+    } else setPrompt(q.text);
+    setHint('拖動長針撥分，拖動短針撥點。');
+    var startT; do{ startT=toTotal(rand(1,12),rand(0,11)*5); }while(Math.abs(startT-toTotal(q.h,q.m))<30);
+    var c=newClock(clockHost(),{total:startT,ring:q.ring});
+    handControls();
+    var g=div('ctl-group');
+    var rb=btn(az(q.ring?'藏起分鐘刻度':'顯示分鐘刻度'),'small',function(){ var on=!app.clock.ringOn; app.clock.setRing(on); rb.innerHTML=az(on?'藏起分鐘刻度':'顯示分鐘刻度'); });
+    g.appendChild(rb);
+    g.appendChild(btn(az('撥好了，檢查'),'primary',function(){
+      var T=Math.round(c.total), h=hourOf(T), m=minOf(T);
+      app.tries++;
+      if(h===q.h && m===q.m){
+        $('readout').innerHTML=az(hmText(q.h,q.m))+digiHtml(q.h,q.m);
+        c.sector(q.m===0?0:q.h); c.markTicks(q.m); c.locked=true;
+        setFb(app.tries===1?'答對了！你撥得好準！':'撥對了！',true);
+        done(); return;
+      }
+      var nx=nextHour(q.h,1);
+      if(m===q.m) setFb('長針對了！短針要在'+q.h+'和'+nx+'之間，按短針的 +1 大格或拖動短針。',false,'nexthour');
+      else if(q.m>=1 && q.m<=11 && m===q.m*5) setFb('長針指著數字'+q.m+'是'+m+'分，不是'+q.m+'分喔！1小格才是1分。',false,'numAsMin');
+      else if(Math.abs(m-q.m)<=2) setFb('差一點點！長針還要'+(m<q.m?'往前':'往回')+'走'+Math.abs(m-q.m)+'小格。',false,'count');
+      else if(h===q.h||h===nextHour(q.h,-1)) setFb('短針位置差不多了，看長針：'+q.m+'分要先數大格，再數小格。',false,'count');
+      else setFb('短針在'+q.h+'和'+nx+'之間，長針走到'+q.m+'分。短針看點，長針看分。',false,'swap');
+      setHelp('亮起來給我看',function(){
+        setHelp(''); c.sector(q.m===0?0:q.h); c.markTicks(q.m);
+        setInfo(az('短針放在亮起來的區域，長針走到橘色小格的最後一格。'));
+      });
+    }));
+    $('controls').appendChild(g);
+  }
+
+  /* ================= 數字鐘連連看 ================= */
+  function genMatch(){
+    function h1(){ return rand(1,11); }
+    var a=h1(), b=h1(), c=h1(), d=h1(), e=h1();
+    var mins=rand(6,29);
+    var rounds=[
+      {pairs:[[a,0],[a,30],[nextHour(a,-1),55]],text:false},
+      {pairs:[[b,5],[b,50],[nextHour(b,1),5]],text:false},
+      {pairs:[[c,15],[c,45],[nextHour(c,1),15]],text:false},
+      {pairs:[[d,5],[d,50],[nextHour(d,1),5]],text:true},
+      {pairs:[[e,mins],[e,mins+30],[nextHour(e,1),mins]],text:true}
+    ];
+    return rounds.map(function(r){ return {kind:'match',pairs:r.pairs,text:r.text}; });
+  }
+  function askMatch(q){
+    $('stage').className='stage wide';
+    if(q.text){ setPrompt('把一樣時刻的數字鐘和幾點幾分連起來。'); setHint('先點上面一個，再點下面一個。'); }
+    else { setPrompt('把一樣時刻的鐘面和數字鐘連起來。'); setHint('先點鐘面，再點數字鐘。'); }
+    var wrap=div('match');
+    var top=div('m-row'), gap=div('m-gap'), bot=div('m-row');
+    var lines=svgEl('svg',{'class':'m-lines','aria-hidden':'true'});
+    var COLORS=['var(--accent)','var(--accent2)','var(--gold)'];
+    var matched=[], sel=null, left=q.pairs.length;
+    function mk(idx,side){
+      var p=q.pairs[idx], b=document.createElement('button'); b.type='button'; b.className='m-item'; b.dataset.idx=idx; b.dataset.side=side;
+      if(side==='top'){
+        if(q.text) b.innerHTML=digiHtml(p[0],p[1]);
+        else { new Clock(b,{total:toTotal(p[0],p[1]),locked:true,mini:true,label:'鐘面'}); }
+      } else {
+        if(q.text) b.innerHTML=az(hmText(p[0],p[1]));
+        else b.innerHTML=digiHtml(p[0],p[1]);
+      }
+      b.addEventListener('click',function(){ tap(b); });
+      return b;
+    }
+    function drawLines(){
+      lines.innerHTML='';
+      var R=wrap.getBoundingClientRect();
+      matched.forEach(function(mt,i){
+        var a=mt[0].getBoundingClientRect(), b=mt[1].getBoundingClientRect();
+        lines.appendChild(svgEl('line',{x1:a.left+a.width/2-R.left,y1:a.bottom-R.top,x2:b.left+b.width/2-R.left,y2:b.top-R.top,style:'stroke:'+COLORS[i%3]+';','stroke-width':5,'stroke-linecap':'round'}));
+      });
+    }
+    app.onResize=drawLines;
+    function tap(b){
+      if(b.classList.contains('done')) return;
+      if(!sel || sel.dataset.side===b.dataset.side){
+        if(sel) sel.classList.remove('sel');
+        sel=(sel===b)?null:b;
+        if(sel) sel.classList.add('sel');
+        return;
+      }
+      var i=+sel.dataset.idx, j=+b.dataset.idx, tp=sel.dataset.side==='top'?sel:b, bt=sel.dataset.side==='top'?b:sel;
+      sel.classList.remove('sel'); sel=null;
+      if(i===j){
+        tp.classList.add('done'); bt.classList.add('done'); tp.disabled=true; bt.disabled=true;
+        matched.push([tp,bt]); drawLines(); left--;
+        setFb('',true);
+        if(left===0){
+          if(!app.tries) app.tries=1;
+          setFb(app.tries===1?'全部連對了！':'連好了！',true);
+          done();
+        }
+        return;
+      }
+      app.tries=2; // 這一輪連錯過，就不算第一次全對
+      tp.classList.add('bad'); bt.classList.add('bad');
+      later(function(){ tp.classList.remove('bad'); bt.classList.remove('bad'); },500);
+      var pa=q.pairs[+tp.dataset.idx], pb=q.pairs[+bt.dataset.idx];
+      if(q.text){
+        setFb('再看一次：'+digi(pa[0],pa[1])+'，前面的'+pa[0]+'是點，後面的'+pad2(pa[1])+'是'+pa[1]+'分。',false,'digital');
+      } else if(pa[0]===pb[0]){
+        setFb('點一樣，再看長針：長針指著數字幾？用5、10、15數數看。',false,'digital');
+      } else if(pa[1]===pb[1]){
+        setFb('分一樣，再看短針：它剛走過哪一個數字？',false,'nexthour');
+      } else {
+        setFb('數字鐘前面的數字是點，後面的數字是分。',false,'digital');
+      }
+    }
+    shuffle([0,1,2]).forEach(function(i){ top.appendChild(mk(i,'top')); });
+    shuffle([0,1,2]).forEach(function(i){ bot.appendChild(mk(i,'bot')); });
+    wrap.appendChild(top); wrap.appendChild(gap); wrap.appendChild(bot); wrap.appendChild(lines);
+    $('visual').appendChild(wrap);
+    drawLines();
+  }
+
+  /* ================= 時間經過（上午 6 點到下午 6 點，用 6～18 表示） ================= */
+  function periodText(a){ return a<12?'上午'+a+'點' : a===12?'中午12點' : '下午'+(a-12)+'點'; }
+  var END_STORY=[
+    ['奶奶從上午11點開始包粽子，花了2小時。粽子包好是幾點？',11,2],
+    ['妹妹從上午10點開始看書，看了3小時。看完書是幾點？',10,3],
+    ['爸爸從上午11點開始洗車，花了1小時。洗好車是幾點？',11,1],
+    ['姊姊從中午12點開始畫畫，畫了2小時。畫好是幾點？',12,2]
+  ];
+  var START_STORY=[
+    ['媽媽燙頭髮花了3小時，燙好時是下午1點。媽媽幾點開始燙頭髮？',13,3],
+    ['弟弟爬山花了3小時，下午2點回到家。弟弟幾點出發？',14,3],
+    ['姊姊做蛋糕花了2小時，中午12點做好。姊姊幾點開始做蛋糕？',12,2],
+    ['阿姨打掃花了2小時，下午1點打掃好。阿姨幾點開始打掃？',13,2]
+  ];
+  var DUR_SAME=[
+    ['哥哥下午4點上游泳課，下午6點下課。哥哥游泳共花了幾小時？',16,18],
+    ['妹妹上午8點開始玩積木，上午10點玩完。妹妹玩了幾小時？',8,10],
+    ['爸爸下午1點開始修車，下午5點修好。爸爸修車花了幾小時？',13,17]
+  ];
+  var DUR_CROSS=[
+    ['妹妹上午9點上畫畫課，中午12點下課。妹妹上畫畫課共花了幾小時？',9,12],
+    ['阿姨上午11點開始做菜，下午1點做好。阿姨做菜花了幾小時？',11,13],
+    ['叔叔上午10點開始爬山，下午2點回到家。叔叔爬山花了幾小時？',10,14]
+  ];
+  function genPass(){
+    var ends=shuffle(END_STORY), starts=shuffle(START_STORY);
+    var sameA=rand(7,9), sameB=rand(14,16), crossA=pick([10,11]), nA=rand(13-crossA,15-crossA), crossB=pick([13,14]), nB=rand(2,3);
+    return [
+      {kind:'pass',type:'after',from:sameA,n:1,text:'現在是'+periodText(sameA)+'，1小時後是幾點？'},
+      {kind:'pass',type:'before',from:sameB,n:1,text:'現在是'+periodText(sameB)+'，1小時前是幾點？'},
+      {kind:'pass',type:'after',from:crossA,n:nA,text:'現在是'+periodText(crossA)+'，'+nA+'小時後是幾點？'},
+      {kind:'pass',type:'after',from:ends[0][1],n:ends[0][2],text:ends[0][0]},
+      {kind:'pass',type:'before',from:crossB,n:nB,text:'現在是'+periodText(crossB)+'，'+nB+'小時前是幾點？'},
+      (function(s){ return {kind:'pass',type:'dur',from:s[1],to:s[2],text:s[0]}; })(pick(DUR_SAME)),
+      (function(s){ return {kind:'pass',type:'dur',from:s[1],to:s[2],text:s[0]}; })(pick(DUR_CROSS)),
+      {kind:'pass',type:'before',story:true,from:starts[0][1],n:starts[0][2],text:starts[0][0]}
+    ];
+  }
+  function timelineEl(state){
+    var box=div('timeline');
+    var zones=div('tl-zones');
+    zones.innerHTML='<span class="z-am">'+az('上午')+'</span><span class="z-noon">'+az('中午')+'</span><span class="z-pm">'+az('下午')+'</span>';
+    box.appendChild(zones);
+    var nodes=div('tl-nodes'), els={};
+    for(var a=6;a<=18;a++){
+      (function(a){
+        var b=document.createElement('button'); b.type='button'; b.className='tl-node';
+        b.innerHTML='<span class="flag"></span><span>'+(a>12?a-12:a)+'</span>';
+        b.setAttribute('aria-label',periodText(a));
+        b.addEventListener('click',function(){ state.goto(a); });
+        els[a]=b; nodes.appendChild(b);
+      })(a);
+    }
+    box.appendChild(nodes);
+    box.refresh=function(cur,from,to){
+      for(var a=6;a<=18;a++){
+        var lo=Math.min(cur,from), hi=Math.max(cur,from);
+        els[a].classList.toggle('cur',a===cur);
+        els[a].classList.toggle('walked',a>=lo&&a<=hi&&a!==cur);
+        els[a].querySelector('.flag').textContent = a===from?'🚩':(a===to?'🏁':'');
+      }
+    };
+    return box;
+  }
+  function askPass(q){
+    setPrompt(q.text);
+    var isDur=q.type==='dur';
+    var ans=isDur?(q.to-q.from):(q.type==='after'?q.from+q.n:q.from-q.n);
+    setHint(isDur?'從🚩走到🏁，短針走幾大格就是幾小時。':(q.story?'從🚩開始，往前走走看。':'按按鈕讓時鐘走走看，短針走1大格是1小時。'));
+    var v=$('visual');
+    var w=clockHost();
+    var cur=q.from, busy=false, answered=false;
+    var c=newClock(w,{total:toTotal(q.from>12?q.from-12:q.from,0),locked:true,label:'時鐘'});
+    var fingers=div('fingers');
+    var state={ goto:function(a){ if(busy||answered||a===cur) return; walk(a-cur); } };
+    var tl=timelineEl(state);
+    v.appendChild(tl); v.appendChild(fingers);
+    function refresh(){
+      tl.refresh(cur,q.from,isDur?q.to:null);
+      var k=Math.abs(cur-q.from);
+      $('readout').innerHTML=az('現在：'+periodText(cur));
+      fingers.innerHTML=k?az((cur>q.from?'往後':'往前')+'走了'+k+'小時 ')+'<span aria-hidden="true">'+'☝️'.repeat(k)+'</span>':'';
+    }
+    function walk(d){
+      if(busy) return;
+      var target=cur+d;
+      if(target<6||target>18) return;
+      busy=true;
+      var ms=Math.min(600*Math.abs(d),1800);
+      app.clock.animateBy(d*60,ms,function(){ cur=target; busy=false; refresh(); });
+    }
+    refresh();
+    var g=div('ctl-group');
+    g.appendChild(btn('◀ '+az('往前1小時'),'',function(){ if(!answered) walk(-1); }));
+    g.appendChild(btn(az('往後1小時')+' ▶','',function(){ if(!answered) walk(1); }));
+    g.appendChild(btn(az('回到🚩'),'small',function(){ if(!answered&&!busy&&cur!==q.from) walk(q.from-cur); }));
+    $('controls').appendChild(g);
+
+    function finishPass(okText){
+      answered=true;
+      var after=function(){ cur=isDur?q.to:ans; refresh(); };
+      var target=isDur?q.to:ans;
+      if(target!==cur&&app.clock){ busy=true; app.clock.animateBy((target-cur)*60,900,function(){ busy=false; after(); }); } else after();
+      setFb(okText,true);
+      done();
+    }
+    if(isDur){
+      [ans-1,ans,ans+1,ans+2].forEach(function(o){
+        var b=btn(o+' '+az('小時'),'choice',function(){
+          if(answered) return; app.tries++;
+          if(o===ans){ b.classList.add('ok');
+            var path=[]; for(var a=q.from;a<=q.to;a++) path.push(a>12?a-12:a);
+            finishPass((app.tries===1?'答對了！':'對了！')+path.join('→')+'，短針走了'+ans+'大格，是'+ans+'小時。');
+          } else { b.classList.add('no'); b.disabled=true;
+            setFb(q.from<=12&&q.to>12?'不能直接減喔！過了12又從1開始，按「往後1小時」一格一格數。':'從🚩到🏁，短針走1大格就是1小時，按按鈕數數看。',false,'elapsed');
+          }
+        });
+        $('choices').appendChild(b);
+      });
+    } else {
+      var other = ans>12 ? '上午'+(ans-12)+'點' : null; // 迷思：過了中午還以為是上午
+      var opposite = q.type==='after'?q.from-q.n:q.from+q.n;
+      var cand=[];
+      if(other) cand.push({t:other,why:'noon'});
+      if(opposite>=1&&opposite<=23&&opposite!==ans) cand.push({t:periodText(opposite),why:'direction'});
+      [ans+1,ans-1,ans+2,ans-2].forEach(function(a){ if(a>=6&&a<=18&&a!==opposite) cand.push({t:periodText(a),why:'off'}); });
+      var opts2=[{t:periodText(ans),why:'ok'}], seen={}; seen[periodText(ans)]=1;
+      cand.forEach(function(c){ if(!seen[c.t]&&opts2.length<4){ seen[c.t]=1; opts2.push(c); } });
+      shuffle(opts2).forEach(function(o){
+        var b=btn(az(o.t),'choice',function(){
+          if(answered) return; app.tries++;
+          if(o.why==='ok'){ b.classList.add('ok');
+            finishPass((app.tries===1?'答對了！':'對了！')+periodText(q.from)+(q.type==='after'?'，再過':'，往前')+q.n+'小時，是'+periodText(ans)+'。');
+          } else { b.classList.add('no'); b.disabled=true;
+            if(o.why==='noon') setFb('過了中午12點就是下午喔！',false,'noon');
+            else if(o.why==='direction') setFb(q.type==='after'?'幾小時後，時間要往後走喔！':'這一題要往前走，找開始的時間。',false,'direction');
+            else setFb('短針走1大格是1小時，按按鈕走'+q.n+'次看看。',false,'elapsed');
+          }
+        });
+        $('choices').appendChild(b);
+      });
+    }
+  }
+
+  /* ================= 月曆 ================= */
+  var YEAR=new Date().getFullYear(), ROC=YEAR-1911;
+  var WEEK=['日','一','二','三','四','五','六'];
+  function daysIn(m){ return new Date(YEAR,m,0).getDate(); }
+  function wdOf(m,d){ return new Date(YEAR,m-1,d).getDay(); }
+  function dayNum(m,d){ return Math.round((new Date(YEAR,m-1,d)-new Date(YEAR,0,1))/86400000); }
+  function md(m,d){ return m+'月'+d+'日'; }
+  function monthEl(m,opts){
+    opts=opts||{};
+    var box=div('cal');
+    var t=div('cal-t'); t.innerHTML=az('民國'+ROC+'年'+m+'月'); box.appendChild(t);
+    var g=div('cal-g');
+    WEEK.forEach(function(w,i){ var h=div('cal-h'+(i===0?' sun':i===6?' sat':'')); h.textContent=w; g.appendChild(h); });
+    for(var b=0;b<wdOf(m,1);b++) g.appendChild(div(''));
+    var els={};
+    for(var d=1;d<=daysIn(m);d++){
+      (function(d){
+        var wd=wdOf(m,d), cls='day'+(wd===0?' sun':wd===6?' sat':'');
+        var e;
+        if(opts.onTap){
+          e=document.createElement('button'); e.type='button'; e.className=cls;
+          e.setAttribute('aria-label',md(m,d)+'星期'+WEEK[wd]);
+          e.addEventListener('click',function(){ opts.onTap(m,d); });
+        } else { e=div(cls); }
+        e.textContent=d;
+        els[d]=e; g.appendChild(e);
+      })(d);
+    }
+    box.appendChild(g);
+    box.els=els; box.month=m;
+    return box;
+  }
+  function calsHost(){ var c=div('cals'); $('visual').appendChild(c); return c; }
+  function setDay(cal,d,cls,on){ if(cal.els[d]) cal.els[d].classList.toggle(cls,on); }
+  function setBadge(cal,d,n){
+    var e=cal.els[d]; if(!e) return;
+    var old=e.querySelector('.n'); if(old) old.remove();
+    if(n){ var s=document.createElement('span'); s.className='n'; s.textContent=n; e.appendChild(s); }
+  }
+  function datesBetween(m1,d1,m2,d2){
+    var out=[], m=m1, d=d1;
+    while(m<m2||(m===m2&&d<=d2)){ out.push([m,d]); d++; if(d>daysIn(m)){ m++; d=1; } }
+    return out;
+  }
+
+  /* ---- 月曆探索 ---- */
+  function startCalendarExplore(){
+    clearPlay();
+    $('progress').innerHTML=az('月曆探索');
+    setPrompt('點一個日期看看是星期幾，再點第二個日期，數數看共幾天。');
+    setHint('1年有12個月，1星期有7天。');
+    var now=new Date(), cur=now.getMonth()+1, a=null, b=null;
+    var host=calsHost(), cal=null;
+    function tabs(){
+      var c=$('controls'); c.innerHTML='';
+      var t=div('month-tabs');
+      for(var m=1;m<=12;m++){
+        (function(m){
+          var x=document.createElement('button'); x.type='button'; x.className='mtab'+(m===cur?' on':'');
+          x.innerHTML=m+'<span>'+az('月')+'</span><small>'+daysIn(m)+az('天')+'</small>';
+          x.addEventListener('click',function(){ cur=m; draw(); });
+          t.appendChild(x);
+        })(m);
+      }
+      c.appendChild(t);
+      var g=div('ctl-group');
+      g.appendChild(btn(az('清除圈選'),'small',function(){ a=null; b=null; draw(); }));
+      c.appendChild(g);
+    }
+    function tap(m,d){
+      if(!a||b){ a=[m,d]; b=null; }
+      else {
+        var cmp=dayNum(m,d)-dayNum(a[0],a[1]);
+        if(cmp===0){ a=null; }
+        else if(cmp>0) b=[m,d];
+        else { b=a; a=[m,d]; }
+      }
+      draw();
+    }
+    function draw(){
+      host.innerHTML='';
+      cal=monthEl(cur,{onTap:tap}); host.appendChild(cal);
+      tabs();
+      if(a&&!b){
+        if(a[0]===cur) setDay(cal,a[1],'circled',true);
+        $('readout').innerHTML=az(md(a[0],a[1])+'星期'+WEEK[wdOf(a[0],a[1])]);
+        setInfo(az('再點另一個日期，也可以先換到別的月份再點。'));
+      } else if(a&&b){
+        var list=datesBetween(a[0],a[1],b[0],b[1]);
+        list.forEach(function(x,i){ if(x[0]===cur){ setDay(cal,x[1],'mk',true); setBadge(cal,x[1],i+1); } });
+        $('readout').innerHTML=az('共'+list.length+'天');
+        var weeks=Math.floor(list.length/7), rest=list.length%7;
+        setInfo(az('從'+md(a[0],a[1])+'到'+md(b[0],b[1])+'，開始那一天也要算。')
+          +(weeks&&!rest?'<br>'+az(list.length+'天是'+weeks+'星期。'):''));
+      } else {
+        $('readout').innerHTML=az(cur+'月有'+daysIn(cur)+'天');
+        setInfo(az('這個月第一天是星期'+WEEK[wdOf(cur,1)]+'，最後一天是'+cur+'月'+daysIn(cur)+'日。'));
+      }
+    }
+    draw();
+  }
+
+  /* ---- 月曆任務題目 ---- */
+  var RANGE_WHO=['樂樂參加夏令營','百貨公司舉行特賣會','奶奶去旅行','圖書館舉辦書展','學校舉行運動會練習'];
+  var TRIP_WHO=['爸爸到日本出差','媽媽到高雄出差','叔叔到美國出差','阿姨去旅行'];
+  var SHOW_WHO=[['展覽會','開始，共展出1星期'],['文具店','開始舉行1星期的特賣會'],['書店','開始舉行1星期的書展']];
+  function genCalQuiz(){
+    var used={};
+    function month(){ var m,g=0; do{ m=rand(1,12); g++; }while(used[m]&&g<12); used[m]=1; return m; }
+    var m1=month(), mRange=month(), mLast=month();
+    var mDays=pick([1,2,3,4,5,6,7,8,9,10,11,12]);
+    var mTrip=pick([1,3,4,5,6,8,9,10]);
+    var dTripEnd=rand(2,4), dTripBack=rand(0,2);
+    var len=rand(3,9), dStart=rand(1,daysIn(mRange)-len);
+    var mTwo=rand(1,11);
+    var wk=pick([2,3]);
+    var sameLen=pick([7,7,6,8]), mSame=pick([4,6,9,11,3,5]);
+    var a1=rand(1,6), b1=rand(20,daysIn(mSame)-sameLen+1);
+    var dLast=rand(1,daysIn(mLast)-7), show=pick(SHOW_WHO);
+    var longEnd=rand(20,31);
+    var fact=pick([
+      {text:'1年有幾個月？',ans:12,unit:'個月',note:'看年曆，從1月數到12月。'},
+      {text:'1星期有幾天？',ans:7,unit:'天',note:'星期日到星期六，數數看。'}
+    ]);
+    return [
+      {kind:'calFact',fact:fact},
+      {kind:'calDays',m:mDays},
+      {kind:'calWeekday',m:m1,d:rand(1,daysIn(m1))},
+      {kind:'calRange',m1:mRange,d1:dStart,m2:mRange,d2:dStart+len-1,text:pick(RANGE_WHO)+'，從'+md(mRange,dStart)+'到'+md(mRange,dStart+len-1)+'，共有幾天？'},
+      {kind:'calWeeks',n:wk},
+      {kind:'calRange',m1:mTrip,d1:daysIn(mTrip)-dTripBack,m2:mTrip+1,d2:dTripEnd,text:pick(TRIP_WHO)+'，從'+md(mTrip,daysIn(mTrip)-dTripBack)+'到'+md(mTrip+1,dTripEnd)+'，一共幾天？'},
+      {kind:'calLast',m:mLast,d:dLast,who:show},
+      {kind:'calTwo',m1:mTwo,m2:mTwo+1},
+      {kind:'calSame',m:mSame,a:[a1,a1+6],b:[b1,b1+sameLen-1]},
+      {kind:'calRange',m1:7,d1:1,m2:8,d2:longEnd,long:true,text:'暑假從7月1日開始，到8月'+longEnd+'日結束，暑假共有幾天？'}
+    ];
+  }
+  function askCalFact(q){
+    setPrompt(q.fact.text);
+    setHint(q.fact.note);
+    var box=div('');
+    if(q.fact.unit==='天'){
+      var r=div('week-row'); WEEK.forEach(function(w){ var d=div('wd'); d.textContent=w; r.appendChild(d); });
+      box.className='week-rows'; box.appendChild(r);
+    } else {
+      var t=div('month-tabs');
+      for(var m=1;m<=12;m++){ var x=div('mtab'); x.innerHTML=m+'<span>'+az('月')+'</span>'; x.style.textAlign='center'; t.appendChild(x); }
+      box.appendChild(t);
+    }
+    $('visual').appendChild(box);
+    var pad=makePad([{unit:q.fact.unit}],function(v){
+      if(v[0]===null) return setFb('先填答案喔！',false);
+      app.tries++;
+      if(v[0]===q.fact.ans){ setFb(q.fact.text.replace('幾',String(q.fact.ans)).replace('？','。'),true); done(); return; }
+      setFb(q.fact.note,false,'week'); pad.clear();
+    });
+  }
+  function askCalDays(q){
+    var ans=daysIn(q.m);
+    setPrompt('查月曆：'+q.m+'月有幾天？');
+    setHint('看這個月最後一天是幾日。');
+    var host=calsHost(), cal=monthEl(q.m); host.appendChild(cal);
+    [28,29,30,31].forEach(function(o){
+      var b=btn(o+' '+az('天'),'choice',function(){
+        app.tries++;
+        if(o===ans){
+          b.classList.add('ok'); setDay(cal,ans,'circled',true);
+          setFb(q.m+'月最後一天是'+md(q.m,ans)+'，所以有'+ans+'天。',true);
+          Array.prototype.forEach.call($('choices').children,function(x){ x.disabled=true; });
+          done();
+        } else { b.classList.add('no'); b.disabled=true; setFb('再看一次，'+q.m+'月最後一天是幾日？',false,'monthDays'); }
+      });
+      $('choices').appendChild(b);
+    });
+  }
+  function askCalWeekday(q){
+    var wd=wdOf(q.m,q.d), sel=null;
+    setPrompt('圈起來的日期是幾月幾日星期幾？');
+    setHint('找到圈起來的日期，再往上看最上面寫什麼。');
+    var host=calsHost(), cal=monthEl(q.m); host.appendChild(cal);
+    setDay(cal,q.d,'circled',true);
+    var chosen=[];
+    WEEK.forEach(function(w,i){
+      var b=btn(az('星期')+w,'choice',function(){ sel=i; chosen.forEach(function(c){ c.classList.remove('sel'); }); b.classList.add('sel'); });
+      b.style.minWidth='88px'; b.style.fontSize='17px';
+      chosen.push(b); $('choices').appendChild(b);
+    });
+    var pad=makePad([{unit:'月',auto:true},{unit:'日'}],function(v){
+      if(v[0]===null||v[1]===null) return setFb('月和日都要填喔！',false);
+      if(sel===null) return setFb('還要選星期幾喔！',false);
+      app.tries++;
+      if(v[0]===q.m&&v[1]===q.d&&sel===wd){
+        chosen.forEach(function(c){ c.disabled=true; c.classList.remove('sel'); });
+        chosen[wd].classList.add('ok');
+        setFb('答對了！'+md(q.m,q.d)+'星期'+WEEK[wd]+'。',true); done(); return;
+      }
+      if(v[0]!==q.m||v[1]!==q.d) setFb('日期再看一次：看月曆最上面是幾月，圈起來的數字是幾日。',false,'weekday');
+      else setFb('日期對了！從圈起來的日期往上看，最上面才是星期幾。',false,'weekday');
+      pad.clear();
+    });
+  }
+  function askCalRange(q){
+    setPrompt(q.text);
+    setHint(q.long?'先算第一個月的天數，再加上第二個月的天數。':'從開始那天一天一天點，數到最後一天。');
+    var list=datesBetween(q.m1,q.d1,q.m2,q.d2), ans=list.length;
+    var marks={}, host=calsHost(), cals={};
+    function key(m,d){ return m+'-'+d; }
+    function redraw(){
+      // 依日期順序重新編號，學生可以看到第幾天
+      var allMarked=[];
+      Object.keys(marks).forEach(function(k){ var p=k.split('-'); allMarked.push([+p[0],+p[1]]); });
+      allMarked.sort(function(a,b){ return dayNum(a[0],a[1])-dayNum(b[0],b[1]); });
+      Object.keys(cals).forEach(function(mm){ var c=cals[mm]; for(var d=1;d<=daysIn(+mm);d++){ setDay(c,d,'mk',false); setBadge(c,d,0); } });
+      allMarked.forEach(function(x,i){ var c=cals[x[0]]; setDay(c,x[1],'mk',true); setBadge(c,x[1],i+1); });
+      $('readout').innerHTML=allMarked.length?az('圈了'+allMarked.length+'天'):'';
+    }
+    function tap(m,d){ var k=key(m,d); if(marks[k]) delete marks[k]; else marks[k]=1; redraw(); }
+    [q.m1].concat(q.m2!==q.m1?[q.m2]:[]).forEach(function(m){ var c=monthEl(m,{onTap:tap}); cals[m]=c; host.appendChild(c); });
+    if(q.m1!==q.m2) $('stage').className='stage wide';
+    function fillAll(cb){
+      marks={}; redraw();
+      var i=0, step=reduceMotion?10:Math.max(90,Math.min(450,2400/list.length));
+      (function go(){
+        if(i>=list.length){ if(cb) cb(); return; }
+        marks[key(list[i][0],list[i][1])]=1; i++; redraw();
+        later(go,step);
+      })();
+    }
+    var explain = q.long ? (daysIn(7)+'＋'+(q.d2)+'＝'+ans+'，共'+ans+'天。')
+      : (q.m1===q.m2 || list.length<=9 ? list.map(function(x){ return x[1]; }).join('、')+'，共'+ans+'天。' : '共'+ans+'天。');
+    var pad=makePad([{unit:'天'}],function(v){
+      if(v[0]===null) return setFb('先填答案喔！',false);
+      app.tries++;
+      if(v[0]===ans){
+        marks={}; list.forEach(function(x){ marks[key(x[0],x[1])]=1; }); redraw();
+        setFb('答對了！'+explain,true); done(); return;
+      }
+      if(v[0]===ans-1) setFb('開始的那一天也要算進去喔！用減的會少1天。',false,'inclusive');
+      else if(q.long) setFb('7月有'+daysIn(7)+'天，8月1日到8月'+q.d2+'日有'+q.d2+'天，加起來是幾天？',false,'inclusive');
+      else if(q.m1!==q.m2) setFb(q.m1+'月有'+daysIn(q.m1)+'天，過了'+md(q.m1,daysIn(q.m1))+'就接到'+md(q.m2,1)+'。一天一天點數看。',false,'inclusive');
+      else setFb('從'+md(q.m1,q.d1)+'開始，一天一天點到'+md(q.m2,q.d2)+'。',false,'inclusive');
+      pad.clear();
+      setHelp('幫我數',function(){ setHelp(''); fillAll(); });
+    });
+  }
+  function askCalWeeks(q){
+    var ans=q.n*7;
+    setPrompt('恩恩全家人出國旅行'+q.n+'星期，'+q.n+'星期有幾天？');
+    setHint('1星期有7天。');
+    var box=div('week-rows');
+    for(var r=1;r<=q.n;r++){
+      var row=div('week-row'), lab=document.createElement('b'); lab.innerHTML=az('第'+r+'星期'); row.appendChild(lab);
+      WEEK.forEach(function(w){ var d=div('wd'); d.textContent=w; row.appendChild(d); });
+      box.appendChild(row);
+    }
+    $('visual').appendChild(box);
+    var pad=makePad([{unit:'天'}],function(v){
+      if(v[0]===null) return setFb('先填答案喔！',false);
+      app.tries++;
+      var sum=[]; for(var i=0;i<q.n;i++) sum.push(7);
+      if(v[0]===ans){ setFb('答對了！'+sum.join('＋')+'＝'+ans+'，'+q.n+'星期有'+ans+'天。',true); done(); return; }
+      setFb(q.n+'星期就是'+q.n+'個7天，算算看：'+sum.join('＋')+'。',false,'week'); pad.clear();
+    });
+  }
+  function askCalLast(q){
+    var end=q.d+6, finished=false;
+    setPrompt(q.who[0]+'從'+md(q.m,q.d)+q.who[1]+'。最後一天是幾月幾日？請點出來。');
+    setHint('開始的那一天算第1天，數到第7天。');
+    var host=calsHost(), cal;
+    cal=monthEl(q.m,{onTap:function(m,d){
+      if(finished) return;
+      app.tries++;
+      if(d===end){
+        finished=true;
+        for(var x=q.d;x<=end;x++){ setDay(cal,x,'mk',true); setBadge(cal,x,x-q.d+1); }
+        setDay(cal,end,'circled',true);
+        setFb('答對了！最後一天是'+md(q.m,end)+'。',true); done(); return;
+      }
+      var e=cal.els[d]; e.classList.add('no'); later(function(){ e.classList.remove('no'); },700);
+      if(d===end+1) setFb('開始的那一天也要算喔！'+md(q.m,q.d)+'是第1天，再數到第7天。',false,'inclusive');
+      else setFb('1星期有7天。從'+md(q.m,q.d)+'開始一天一天數，數到第7天。',false,'week');
+      setHelp('幫我數',function(){
+        setHelp('');
+        var x=q.d;
+        (function go(){ if(x>end||finished) return; setDay(cal,x,'mk',true); setBadge(cal,x,x-q.d+1); x++; later(go,reduceMotion?10:400); })();
+      });
+    }});
+    host.appendChild(cal);
+    setDay(cal,q.d,'circled',true);
+  }
+  function askCalTwo(q){
+    var ans=daysIn(q.m1)+daysIn(q.m2);
+    setPrompt(q.m1+'月和'+q.m2+'月共有幾天？');
+    setHint('先查這兩個月各有幾天，再加起來。');
+    $('stage').className='stage wide';
+    var host=calsHost();
+    host.appendChild(monthEl(q.m1)); host.appendChild(monthEl(q.m2));
+    var pad=makePad([{unit:'天'}],function(v){
+      if(v[0]===null) return setFb('先填答案喔！',false);
+      app.tries++;
+      if(v[0]===ans){ setFb('答對了！'+daysIn(q.m1)+'＋'+daysIn(q.m2)+'＝'+ans+'，共'+ans+'天。',true); done(); return; }
+      setFb('看每個月最後一天：'+q.m1+'月有'+daysIn(q.m1)+'天，'+q.m2+'月有幾天？再加起來。',false,'monthDays'); pad.clear();
+    });
+  }
+  function askCalSame(q){
+    var la=q.a[1]-q.a[0]+1, lb=q.b[1]-q.b[0]+1, same=la===lb;
+    setPrompt('林叔叔出差，從'+md(q.m,q.a[0])+'到'+md(q.m,q.a[1])+'。李阿姨出差，從'+md(q.m,q.b[0])+'到'+md(q.m,q.b[1])+'。兩個人出差的天數相同嗎？');
+    setHint('黃色是林叔叔，綠色是李阿姨。');
+    var host=calsHost(), cal=monthEl(q.m); host.appendChild(cal);
+    for(var x=q.a[0];x<=q.a[1];x++) setDay(cal,x,'mk',true);
+    for(var y=q.b[0];y<=q.b[1];y++) setDay(cal,y,'mk2',true);
+    var finished=false;
+    [['相同',true],['不同',false]].forEach(function(o){
+      var b=btn(az(o[0]),'choice',function(){
+        if(finished) return; app.tries++;
+        if(o[1]===same){
+          finished=true; b.classList.add('ok');
+          for(var x=q.a[0];x<=q.a[1];x++) setBadge(cal,x,x-q.a[0]+1);
+          for(var y=q.b[0];y<=q.b[1];y++) setBadge(cal,y,y-q.b[0]+1);
+          setFb('林叔叔'+la+'天，李阿姨'+lb+'天，天數'+(same?'相同':'不同')+'。'+(same?'連續7天就是1星期，從星期幾開始都一樣。':''),true);
+          Array.prototype.forEach.call($('choices').children,function(c){ c.disabled=true; });
+          done();
+        } else { b.classList.add('no'); b.disabled=true; setFb('一天一天數數看：黃色有幾天？綠色有幾天？',false,'week'); }
+      });
+      $('choices').appendChild(b);
+    });
+  }
+
+  var GEN={read:genRead,set:genSet,match:genMatch,pass:genPass,calquiz:genCalQuiz};
+  var ASK={read:askRead,set:askSet,match:askMatch,pass:askPass,calFact:askCalFact,calDays:askCalDays,calWeekday:askCalWeekday,
+    calRange:askCalRange,calWeeks:askCalWeeks,calLast:askCalLast,calTwo:askCalTwo,calSame:askCalSame};
+
+  /* ================= 結果 ================= */
+  function finish(){
+    var m=app.mode, total=app.queue.length;
+    $('btn-retry').innerHTML=az('再練答錯的題目');
+    if(app.retrying){
+      show('result');
+      $('res-stars').innerHTML='<span aria-hidden="true">🌱</span>';
+      $('res-title').innerHTML=az('又多練了一次！');
+      $('res-sub').innerHTML=az('答錯的題目都重新做完了，你很認真！');
+      $('res-notes').innerHTML='';
+      $('btn-retry').classList.add('hidden');
+      say('你很認真！');
+      return;
+    }
+    var r=app.correct/total;
+    var stars=r>=0.9?3:r>=0.7?2:r>=0.4?1:0;
+    saveStars(m.id,stars); submitRecord(m,app.correct,total,stars);
+    show('result');
+    $('res-stars').innerHTML='★★★'.slice(0,stars)+'<span style="opacity:.25">'+'★★★'.slice(0,3-stars)+'</span>';
+    var title=stars===3?'太棒了！':stars>=1?'很不錯！':'加油，再試一次！';
+    $('res-title').innerHTML=az(title);
+    $('res-sub').innerHTML=az('第一次就答對'+app.correct+'題，共'+total+'題。');
+    var tags=Object.keys(app.errs).sort(function(a,b){ return app.errs[b]-app.errs[a]; }).slice(0,2);
+    $('res-notes').innerHTML=tags.length?az('下次記得：')+'<br>'+tags.map(function(t){ return '・'+az(NOTE_TEXT[t]); }).join('<br>'):'';
+    $('btn-retry').classList.toggle('hidden',app.missed.length===0);
+    say(title);
+  }
+
+  /* ================= wiring ================= */
+  function applyZy(){ document.body.classList.toggle('zy-off',!zyPref()); $('btn-zy').innerHTML=az('注音')+'：'+az(zyPref()?'開':'關'); }
+  function applySound(){ $('btn-sound').innerHTML=az('聲音')+'：'+az(soundPref()?'開':'關'); }
+  $('btn-zy').addEventListener('click',function(){ lsSet('nf_zy',zyPref()?'0':'1'); applyZy(); });
+  $('btn-sound').addEventListener('click',function(){ lsSet('tl_sound',soundPref()?'0':'1'); applySound(); if(!soundPref()) hush(); });
+  $('btn-back').addEventListener('click',function(){ clearPlay(); hush(); renderHub(); show('hub'); });
+  $('btn-say').addEventListener('click',function(){ speak(lastSay); });
+  $('btn-full').addEventListener('click',function(){ var d=document.documentElement; if(!document.fullscreenElement){ d.requestFullscreen&&d.requestFullscreen(); } else { document.exitFullscreen&&document.exitFullscreen(); } });
+  $('btn-again').addEventListener('click',function(){ start(app.mode); });
+  $('btn-retry').addEventListener('click',function(){ retryMissed(); });
+  $('btn-hub').addEventListener('click',function(){ clearPlay(); renderHub(); show('hub'); });
+  document.addEventListener('keydown',function(ev){ if(app.pad) app.pad.key(ev); });
+  window.addEventListener('resize',function(){ if(app.onResize) app.onResize(); });
+  $('lnk-home').innerHTML=az('返回');
+  $('btn-back').innerHTML=az('返回');
+  $('btn-again').innerHTML=az('再玩一次');
+  $('btn-hub').innerHTML=az('選別的');
+  applyZy(); applySound(); renderHub();
+})();
+</script>
+</body>
+</html>
