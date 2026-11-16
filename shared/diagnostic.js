@@ -142,7 +142,7 @@
     "布":"ㄅㄨˋ","維":"ㄨㄟˊ","峰":"ㄈㄥ","旗":"ㄑㄧˊ","距":"ㄐㄩˋ","離":"ㄌㄧˊ","裝":"ㄓㄨㄤ","瓶":"ㄆㄧㄥˊ",
     "容":"ㄖㄨㄥˊ","器":"ㄑㄧˋ","杯":"ㄅㄟ","梨":"ㄌㄧˊ","橘":"ㄐㄩˊ","香":"ㄒㄧㄤ","蕉":"ㄐㄧㄠ","瓜":"ㄍㄨㄚ",
     "周":"ㄓㄡ","沿":"ㄧㄢˊ","它":"ㄊㄚ","足":"ㄗㄨˊ","頂":"ㄉㄧㄥˇ","界":"ㄐㄧㄝˋ","廠":"ㄔㄤˇ","機":"ㄐㄧ",
-    "驟":"ㄗㄡˋ","納":"ㄋㄚˋ","扶":"ㄈㄨˊ","材":"ㄘㄞˊ","評":"ㄆㄧㄥˊ",
+    "驟":"ㄗㄡˋ","納":"ㄋㄚˋ","扶":"ㄈㄨˊ","材":"ㄘㄞˊ","評":"ㄆㄧㄥˊ","含":"ㄏㄢˊ",
     "重":"ㄓㄨㄥˋ"   // 二年級的「重」多半是輕重；「重複、重新」另列在詞語裡
   };
   for(var _g in G2_ZY) CHAR_ZY[_g]=G2_ZY[_g];
@@ -478,8 +478,9 @@
   }
 
   /* ---------- 首頁 ---------- */
-  function renderHub(){
+  function renderHub(noFetch){
     if(!getIdentity()){ renderLogin(true); return; }
+    if(!noFetch) refreshServerHistory(function(){ if(!$('scr-hub').classList.contains('hidden')) renderHub(true); });
     var mine=myHistory(), need=mine.length?needCodes(mine[0]):[];
     show('hub', heroHTML('打倒'+cnNum(C.areas.length)+'隻魔王，看看你學會了哪些數學本領！')+
       '<div class="modes">'+
@@ -633,7 +634,33 @@
   function statusOf(r,t){ if(r===t) return 'pass'; if(t>=2 && r*2>=t) return 'weak'; return 'fail'; }
   var ST_LABEL={pass:'✅ 通過', weak:'⚠️ 需加強', fail:'❌ 未通過'};
   function needCodes(res){ return CODE_ORDER.filter(function(c){ var v=res.codes[c]; return v && statusOf(v[0],v[1])!=='pass'; }); }
-  function myHistory(){ var id=getIdentity(); if(!id) return []; return gradeHistory().filter(function(r){ return r.cls===id.cls && r.name===id.name; }); }
+  /* 孩子自己的紀錄：這台平板的紀錄，加上從試算表讀回的其他平板紀錄。
+   * 讀試算表需要老師金鑰（老師在這台平板的老師專區輸入過），沒有金鑰就只看本機。 */
+  var serverHist={who:'', list:[], state:''};
+  function whoKey(id){ return id.cls+'\u0001'+id.name; }
+  function myHistory(){
+    var id=getIdentity(); if(!id) return [];
+    var seen={}, out=[], extra=serverHist.who===whoKey(id)?serverHist.list:[];
+    gradeHistory().concat(extra).forEach(function(r){
+      if(r.cls!==id.cls || r.name!==id.name || seen[r.id]) return;
+      seen[r.id]=1; out.push(r);
+    });
+    return out.sort(function(a,b){ return b.ts-a.ts; });
+  }
+  function refreshServerHistory(onChange){
+    var id=getIdentity(), key=lsGet('dx_key','');
+    if(!id || !key) return false;
+    function done(list, state){
+      var cur=getIdentity(); if(!cur || whoKey(cur)!==whoKey(id)) return; // 讀取期間換人了
+      serverHist={who:whoKey(id), list:list, state:state};
+      if(onChange) onChange();
+    }
+    apiGet({action:'diagMatrix', key:key, cls:id.cls}).then(function(d){
+      if(!d || !d.ok || !Array.isArray(d.results)){ done(serverHist.who===whoKey(id)?serverHist.list:[], 'fail'); return; }
+      done(d.results.filter(function(r){ return r.name===id.name && inGrade(r); }), 'ok');
+    }).catch(function(){ done(serverHist.who===whoKey(id)?serverHist.list:[], 'fail'); });
+    return true;
+  }
   var lastReport=null;
   function renderReport(res, opt){
     opt=opt||{}; lastReport=res;
@@ -674,9 +701,13 @@
   }
 
   /* ---------- 我的紀錄 ---------- */
-  function renderMyHistory(){
-    var list=myHistory();
-    show('history','<div class="card"><h2>📋 '+az('我的紀錄')+'</h2>'+(list.length?'<table class="hist">'+list.map(function(r){
+  function renderMyHistory(noFetch){
+    var list=myHistory(), note;
+    if(!lsGet('dx_key','')) note='只顯示這台平板上的紀錄（老師在老師專區輸入金鑰後，就能看到其他平板的紀錄）';
+    else if(!noFetch){ refreshServerHistory(function(){ if(!$('scr-history').classList.contains('hidden')) renderMyHistory(true); }); note='☁️ 正在讀取其他平板上的紀錄…'; }
+    else note=serverHist.state==='ok'?'☁️ 已包含其他平板上的紀錄':'⚠️ 讀不到試算表（沒有網路或金鑰不正確），只顯示這台平板上的紀錄';
+    show('history','<div class="card"><h2>📋 '+az('我的紀錄')+'</h2><p class="metaline">'+note+'</p>'+
+      (list.length?'<table class="hist">'+list.map(function(r){
       return '<tr><td>'+fmtTime(r.ts)+'</td><td>'+az(r.mode)+'</td><td>'+r.right+'/'+r.total+'</td><td><button class="btn small" data-act="hist-open" data-id="'+esc(r.id)+'" data-back="myhist">'+az('看報告')+'</button></td></tr>'; }).join('')+'</table>'
       :'<p class="muted">'+az('還沒有紀錄，先去挑戰魔王吧！')+'</p>')+'<div class="row"><button class="btn" data-act="hub">'+az('返回')+'</button></div></div>');
   }
@@ -690,7 +721,7 @@
     show('teacher','<div class="card"><h2>⚙️ 老師專區</h2>'+
       '<p class="metaline" id="be-state">後台狀態：'+state[backendState]+(box.length?'<br>這台平板還有 '+box.length+' 份成績等待補送。':'')+'</p>'+
       '<label class="f" for="api-in">Google Apps Script 網址（和數字森林共用）</label><input class="f" id="api-in" style="font-size:14px" value="'+esc(getApiUrl())+'">'+
-      '<label class="f" for="key-in">老師金鑰（Code.gs 裡的 DX_TEACHER_KEY，用來讀回全班總表）</label><input class="f" id="key-in" type="password" style="font-size:16px" value="'+esc(lsGet('dx_key',''))+'">'+
+      '<label class="f" for="key-in">老師金鑰（Code.gs 裡的 DX_TEACHER_KEY；可讀回全班總表，孩子在這台平板也看得到自己在其他平板的紀錄）</label><input class="f" id="key-in" type="password" style="font-size:16px" value="'+esc(lsGet('dx_key',''))+'">'+
       '<div class="row"><button class="btn primary" data-act="t-save">儲存設定</button></div></div>'+
       '<div class="card"><h2>🛡️ 團體戰</h2><p class="muted">按「開新房間」會產生一組 4 位數號碼。用投影機打開大螢幕，孩子在自己的平板選「團體戰」輸入號碼和隊伍。同一個房間、同一天，全部孩子拿到相同的題目。</p>'+
       '<div class="row"><button class="btn primary" data-act="t-newroom">開新房間</button><input class="f" id="room-in" inputmode="numeric" maxlength="4" placeholder="或輸入已開的房間號碼" style="max-width:240px;font-size:17px"><button class="btn" data-act="t-openroom">打開大螢幕</button></div></div>'+
@@ -791,7 +822,7 @@
     'next-area':function(){ if(!T) return; if(T.i>=T.items.length) finish(); else showQuestion(); },
     'print':function(){ window.print(); },
     'hist-open':function(b){
-      var r=lsJSON('dx_history',[]).filter(function(x){ return x.id===b.dataset.id; })[0];
+      var r=lsJSON('dx_history',[]).concat(serverHist.list).filter(function(x){ return x.id===b.dataset.id; })[0];
       if(r) renderReport(r,{back:b.dataset.back, mine:b.dataset.back==='myhist'});
     },
     'teacher':function(){ T=null; renderTeacher(); },
