@@ -459,10 +459,35 @@
       '<div class="card" id="login-card">'+loginFields(rosterCache)+'<p class="warn" id="login-warn"></p><div class="row"><button class="btn primary" data-act="login">'+az('登入')+'</button></div></div>');
     if(!rosterCache) loadRoster(function(r){ if(r){ rosterCache=r; var c=$('login-card'); if(c && !$('cls-sel')){ c.innerHTML=loginFields(r)+'<p class="warn" id="login-warn"></p><div class="row"><button class="btn primary" data-act="login">'+az('登入')+'</button></div>'; } } });
   }
+  /* 學習扶助的檢測：上學期測「前一年級」的內容，下學期測「本年級」的內容。
+   * 所以 N 年級的測驗卷，給 N 年級（下學期）和 N+1 年級（上學期）的學生使用。 */
+  var GRADE_CH={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6};
+  function gradeOf(cls){
+    var s=String(cls||'').trim(), m=s.match(/^([一二三四五六])/);
+    if(m) return GRADE_CH[m[1]];
+    m=s.match(/^([1-6])/);
+    return m?Number(m[1]):0;
+  }
+  function purposeOf(cls){
+    var g=gradeOf(cls);
+    if(g===C.grade) return {key:'now', short:'本年級', label:'下學期檢測（本年級的學習內容）'};
+    if(g===C.grade+1) return {key:'prev', short:'前一年級', label:'上學期檢測（前一年級的學習內容）'};
+    return null;
+  }
+  var CN_G=['','一','二','三','四','五','六'];
   function loginFields(roster){
     if(roster){
-      var cls=Object.keys(roster).sort();
-      return '<label class="f" for="cls-sel">'+az('班級')+'</label><select class="f" id="cls-sel"><option value="">'+az('請選擇')+'</option>'+cls.map(function(c){ return '<option>'+esc(c)+'</option>'; }).join('')+'</select>'+
+      var ORD='甲乙丙丁戊己庚辛壬癸';
+      function sortKey(c){ return String(c).replace(/[甲乙丙丁戊己庚辛壬癸]/g, function(x){ return String.fromCharCode(0x30+ORD.indexOf(x)); }); }
+      var all=Object.keys(roster).sort(function(a,b){ var x=sortKey(a), y=sortKey(b); return x<y?-1:x>y?1:0; }), now=[], prev=[], other=[];
+      all.forEach(function(c){ var g=gradeOf(c); if(g===C.grade) now.push(c); else if(g===C.grade+1) prev.push(c); else if(!g) other.push(c); });
+      function opts(list){ return list.map(function(c){ return '<option>'+esc(c)+'</option>'; }).join(''); }
+      var groups='';
+      if(now.length) groups+='<optgroup label="'+CN_G[C.grade]+'年級（下學期：本年級內容）">'+opts(now)+'</optgroup>';
+      if(prev.length) groups+='<optgroup label="'+CN_G[C.grade+1]+'年級（上學期：前一年級內容）">'+opts(prev)+'</optgroup>';
+      if(other.length) groups+='<optgroup label="其他班級">'+opts(other)+'</optgroup>';
+      if(!groups) groups=opts(all); // 班級名稱看不出年級時，全部列出
+      return '<label class="f" for="cls-sel">'+az('班級')+'</label><select class="f" id="cls-sel"><option value="">'+az('請選擇')+'</option>'+groups+'</select>'+
         '<label class="f" for="name-sel">'+az('姓名')+'</label><select class="f" id="name-sel"><option value="">'+az('先選班級')+'</option></select>';
     }
     return '<label class="f" for="cls-in">'+az('班級')+'</label><input class="f" id="cls-in" maxlength="12" placeholder="例如：'+esc(C.classExample)+'" value="'+esc(lsGet('nf_class',''))+'">'+
@@ -680,6 +705,7 @@
     var level=pct>=80?'大致精熟':pct>=60?'部分精熟，請加強下方標示的項目':'建議優先安排補救教學';
     h+='<div class="card rep"><h3>📋 學習診斷報告（教師版）</h3>'+
       '<p class="metaline">'+esc(res.cls)+' '+esc(res.name)+'｜'+fmtTime(res.ts)+'｜'+esc(res.mode)+(res.room?'｜房間 '+esc(res.room)+' '+esc(res.team):'')+'</p>'+
+      '<p class="metaline">測驗卷：'+esc(C.gradeLabel)+'學習內容'+(purposeOf(res.cls)?'｜'+purposeOf(res.cls).label:'')+'</p>'+
       '<p style="margin:8px 0;font-size:17px"><b>答對 '+res.right+' / '+res.total+' 題（'+pct+'%）</b>：'+level+'</p>'+
       '<p class="metaline">判讀：每個指標全對為「通過」；2 題以上答對一半以上為「需加強」；其餘為「未通過」。百分比門檻為本遊戲自訂的參考，不是篩選測驗的通過標準。標 ★ 的是〈學扶題對照表〉中全國錯誤率較高的指標。</p>'+
       '<div class="tblwrap"><table><thead><tr><th>指標代碼</th><th>基本學習內容</th><th>答對</th><th>結果</th></tr></thead><tbody>'+
@@ -742,10 +768,11 @@
     var cnt={}; CODE_ORDER.forEach(function(c){ cnt[c]=[0,0]; });
     var body=list.map(function(r,i){
       var pct=r.total?Math.round(r.right*100/r.total):0;
-      return '<tr><td class="nm">'+esc(r.cls)+' <button class="linkbtn" data-act="mx-open" data-i="'+i+'">'+esc(r.name)+'</button><br><small>'+fmtTime(r.ts).slice(5)+'</small></td><td>'+pct+'%</td>'+
+      var pp=purposeOf(r.cls);
+      return '<tr><td class="nm">'+esc(r.cls)+' <button class="linkbtn" data-act="mx-open" data-i="'+i+'">'+esc(r.name)+'</button><br><small>'+fmtTime(r.ts).slice(5)+'</small></td><td>'+(pp?pp.short:'—')+'</td><td>'+pct+'%</td>'+
         CODE_ORDER.map(function(c){ var v=r.codes[c]; if(!v) return '<td>·</td>'; var s=statusOf(v[0],v[1]); cnt[c][1]++; if(s==='pass') cnt[c][0]++; return '<td class="s-'+s+'" title="'+c+' '+v[0]+'/'+v[1]+'">'+(s==='pass'?'✅':s==='weak'?'⚠️':'❌')+'</td>'; }).join('')+'</tr>'; }).join('');
-    var foot='<tr><th>通過人數</th><th></th>'+CODE_ORDER.map(function(c){ return '<th>'+(cnt[c][1]?cnt[c][0]+'/'+cnt[c][1]:'·')+'</th>'; }).join('')+'</tr>';
-    return '<div class="tblwrap rep"><table class="mx"><thead><tr><th>學生</th><th>答對率</th>'+CODE_ORDER.map(function(c){ return '<th class="code" title="'+esc(CODES[c].name)+'">'+c+(CODES[c].hot?'★':'')+'</th>'; }).join('')+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>'+
+    var foot='<tr><th>通過人數</th><th></th><th></th>'+CODE_ORDER.map(function(c){ return '<th>'+(cnt[c][1]?cnt[c][0]+'/'+cnt[c][1]:'·')+'</th>'; }).join('')+'</tr>';
+    return '<div class="tblwrap rep"><table class="mx"><thead><tr><th>學生</th><th>檢測</th><th>答對率</th>'+CODE_ORDER.map(function(c){ return '<th class="code" title="'+esc(CODES[c].name)+'">'+c+(CODES[c].hot?'★':'')+'</th>'; }).join('')+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>'+
       '<div class="row no-print"><button class="btn small" data-act="print">🖨️ 列印總表</button></div>';
   }
   /* ---------- 老師大螢幕 ---------- */
