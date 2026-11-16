@@ -861,11 +861,17 @@
     't-openroom':function(){ var v=($('room-in').value||'').trim(); if(/^[1-9]\d{3}$/.test(v)) renderBoard(v); else alert('請輸入 4 位數的房間號碼（第一位不是 0）'); },
     't-mx-local':function(){ $('mx-area').innerHTML=matrixHTML(lsJSON('dx_history',[])); },
     't-mx-server':function(){
-      var key=lsGet('dx_key',''), area=$('mx-area');
-      if(!key){ area.innerHTML='<p class="warn">請先在上方輸入老師金鑰並儲存。</p>'; return; }
+      // 直接使用欄位裡現在輸入的金鑰與網址（不必先按「儲存設定」），並順便存起來
+      var keyIn=$('key-in'), apiIn=$('api-in'), area=$('mx-area');
+      if(apiIn && apiIn.value.trim() && apiIn.value.trim()!==getApiUrl()){ lsSet('nf_api', apiIn.value.trim()); backendState='unknown'; backendPromise=null; }
+      var key=keyIn?keyIn.value.trim():lsGet('dx_key','');
+      if(!key){ area.innerHTML='<p class="warn">請先在上方輸入老師金鑰。</p>'; return; }
+      lsSet('dx_key', key);
       area.innerHTML='<p class="muted">讀取中…</p>';
       apiGet({action:'diagMatrix', key:key}).then(function(d){
-        if(!d || !d.ok){ area.innerHTML='<p class="warn">讀取失敗：'+(d&&d.error==='forbidden'?'金鑰不正確，或 Code.gs 的 DX_TEACHER_KEY 還沒設定':'後台尚未更新')+'</p>'; return; }
+        if(!d || !d.ok){ area.innerHTML='<p class="warn">讀取失敗：'+(d&&d.error==='forbidden'
+          ?'金鑰和 Code.gs 的 DX_TEACHER_KEY 不一樣。請確認兩邊完全相同（大小寫也要一樣），而且改完 Code.gs 後有「管理部署作業 → 編輯 → 新版本」重新部署；上方的網址也要是那個部署的網址。'
+          :'後台尚未更新成支援診斷的版本。')+'</p>'; return; }
         area.innerHTML=matrixHTML(d.results);
       }).catch(function(){ area.innerHTML='<p class="warn">連不上後台。</p>'; });
     },
