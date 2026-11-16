@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>數學勇士大挑戰 二年級</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/diagnostic.css">
+</head>
+<body>
+<div id="app"></div>
+<noscript>這個遊戲需要開啟 JavaScript。</noscript>
+<script src="../shared/diagnostic.js"></script>
+<script>
+/* 數學勇士大挑戰（二年級）：題庫
+ * 題型參考 110–114 年二年級數學篩選測驗、〈學扶題對照表〉與 114 年「通過率最低前 5 題」，
+ * 依二年級基本學習內容代碼出「仿題」，數字每次隨機產生，每個錯誤選項都標註它代表的常見迷思。
+ * 遊戲引擎在 ../shared/diagnostic.js。 */
+(function(){
+  "use strict";
+  var D=window.DX, az=D.az, rnd=D.rnd, ri=D.ri, pick=D.pick, shuffle=D.shuffle, sample=D.sample, rep=D.rep, mk=D.mk,
+      mc=D.mc, Q=D.Q, emo=D.emo, grp=D.grp, svgWrap=D.svgWrap, svgMoney=D.svgMoney, svgClock=D.svgClock, svgClockRaw=D.svgClockRaw;
+
+  /* ---------- 小工具 ---------- */
+  var CN=['零','一','二','三','四','五','六','七','八','九'];
+  function cn3(n){ // 三位數的國字讀法，例如 305 → 三百零五
+    var h=Math.floor(n/100), t=Math.floor(n/10)%10, o=n%10, s=CN[h]+'百';
+    if(t) s+=CN[t]+'十'; else if(o) s+='零';
+    if(o) s+=CN[o];
+    return s;
+  }
+  function pad2(n){ return (n<10?'0':'')+n; }
+  function noCarry(a,b){ var r=0, p=1; while(a>0||b>0){ r+=((a%10+b%10)%10)*p; a=Math.floor(a/10); b=Math.floor(b/10); p*=10; } return r; }
+  function bigMinusSmall(a,b){ var r=0, p=1; while(a>0||b>0){ r+=Math.abs(a%10-b%10)*p; a=Math.floor(a/10); b=Math.floor(b/10); p*=10; } return r; }
+  function vert(a,b,op){
+    var A=String(a), B=String(b), n=Math.max(A.length,B.length);
+    function cells(s){ var out=''; while(s.length<n) s=' '+s; for(var i=0;i<n;i++) out+='<td>'+(s[i]===' '?'':s[i])+'</td>'; return out; }
+    return '<table class="vert" aria-hidden="true"><tr><td></td>'+cells(A)+'</tr><tr><td>'+op+'</td>'+cells(B)+'</tr><tr class="line"><td></td>'+rep('<td>&nbsp;</td>',n)+'</tr></table>';
+  }
+  function decompose(T){ var out=[]; [500,100,50,10,5,1].forEach(function(v){ while(T>=v){ out.push(v); T-=v; } }); return out; }
+
+  /* ---------- 二年級的圖 ---------- */
+  function svgBlocks(h,t,o){
+    var s='', x=4, i, j, c=6;
+    for(i=0;i<h;i++){ s+='<rect x="'+x+'" y="4" width="60" height="60" class="cf"/>';
+      for(j=1;j<10;j++) s+='<line x1="'+(x+j*c)+'" y1="4" x2="'+(x+j*c)+'" y2="64" class="bl"/><line x1="'+x+'" y1="'+(4+j*c)+'" x2="'+(x+60)+'" y2="'+(4+j*c)+'" class="bl"/>';
+      x+=68; }
+    for(i=0;i<t;i++){ s+='<rect x="'+x+'" y="4" width="'+c+'" height="60" class="cf"/>';
+      for(j=1;j<10;j++) s+='<line x1="'+x+'" y1="'+(4+j*c)+'" x2="'+(x+c)+'" y2="'+(4+j*c)+'" class="bl"/>';
+      x+=c+6; }
+    x+=6;
+    for(i=0;i<o;i++){ s+='<rect x="'+(x+(i%5)*10)+'" y="'+(i<5?56:44)+'" width="'+c+'" height="'+c+'" class="cf"/>'; }
+    return svgWrap(x+(o?52:0)+4, 68, s);
+  }
+  function svgRuler(from, to, obj){
+    var U=28, x0=18, W=x0*2+(to-from)*U, s="", v;
+    function X(v){ return x0+(v-from)*U; }
+    if(obj.kind==='pencil'){ var xa=X(obj.a), xb=X(obj.b);
+      s+='<rect x="'+xa+'" y="16" width="10" height="16" rx="3" class="eraser"/><rect x="'+(xa+10)+'" y="16" width="'+(xb-xa-28)+'" height="16" class="pencil"/>'+
+         '<polygon points="'+(xb-18)+',16 '+xb+',24 '+(xb-18)+',32" class="wood"/><polygon points="'+(xb-6)+',22 '+xb+',24 '+(xb-6)+',26" class="lead"/>'+
+         '<line x1="'+xa+'" y1="8" x2="'+xa+'" y2="48" class="guide"/><line x1="'+xb+'" y1="8" x2="'+xb+'" y2="48" class="guide"/>';
+    } else {
+      obj.flags.forEach(function(f){ var x=X(f.v);
+        s+='<line x1="'+x+'" y1="8" x2="'+x+'" y2="48" class="pole"/><polygon points="'+x+',8 '+(x+16)+',14 '+x+',20" class="flag"/><text x="'+(x+12)+'" y="38" class="lbl" style="font-size:15px">'+f.lab+'</text>'; });
+    }
+    s+='<rect x="4" y="48" width="'+(W-8)+'" height="36" rx="4" class="ruler"/>';
+    for(v=from; v<=to; v++){ var x=X(v);
+      s+='<line x1="'+x+'" y1="48" x2="'+x+'" y2="62" class="rtk"/><text x="'+x+'" y="78" class="rnum">'+v+'</text>';
+      if(v<to) s+='<line x1="'+(x+U/2)+'" y1="48" x2="'+(x+U/2)+'" y2="56" class="rtk2"/>'; }
+    return svgWrap(W, 88, s);
+  }
+  function svgBalance(leftHeavy, L, Rt){
+    var yl=leftHeavy?72:40, yr=leftHeavy?40:72, s='';
+    s+='<line x1="180" y1="56" x2="180" y2="140" class="beam"/><rect x="140" y="138" width="80" height="8" rx="4" class="pan"/>';
+    s+='<line x1="60" y1="'+yl+'" x2="300" y2="'+yr+'" class="beam"/>';
+    [[60,yl,L],[300,yr,Rt]].forEach(function(p){ var x=p[0], y=p[1];
+      s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x-26)+'" y2="'+(y+30)+'" class="string"/><line x1="'+x+'" y1="'+y+'" x2="'+(x+26)+'" y2="'+(y+30)+'" class="string"/>'+
+         '<path d="M'+(x-32)+','+(y+30)+' Q'+x+','+(y+50)+' '+(x+32)+','+(y+30)+' Z" class="pan"/><text x="'+x+'" y="'+(y+28)+'" class="emoc">'+p[2]+'</text>'; });
+    return svgWrap(360, 150, s);
+  }
+  function svgBottle(frac){
+    var top=12, bot=96, xl0=34, xr0=56, xl1=8, xr1=82;
+    function xl(y){ return xl0+(xl1-xl0)*(y-top)/(bot-top); }
+    function xr(y){ return xr0+(xr1-xr0)*(y-top)/(bot-top); }
+    var wy=bot-(bot-top)*frac;
+    return svgWrap(90,104,'<polygon points="'+xl(wy).toFixed(1)+','+wy.toFixed(1)+' '+xr(wy).toFixed(1)+','+wy.toFixed(1)+' '+xr1+','+bot+' '+xl1+','+bot+'" class="water"/>'+
+      '<polyline points="'+xl0+','+top+' '+xl1+','+bot+' '+xr1+','+bot+' '+xr0+','+top+'" class="glass"/>');
+  }
+  function svgPolygon(n){
+    var pts=[], st=-90+(n%2===0?180/n:0);
+    for(var i=0;i<n;i++){ var a=(st+i*360/n)*Math.PI/180; pts.push((90+74*Math.cos(a)).toFixed(1)+','+(90+74*Math.sin(a)).toFixed(1)); }
+    return svgWrap(180,180,'<polygon points="'+pts.join(' ')+'" class="shp"/>');
+  }
+  function svgRectLab(w,h){
+    var S=24, x0=40, y0=30, s='<rect x="'+x0+'" y="'+y0+'" width="'+(w*S)+'" height="'+(h*S)+'" class="shp"/>';
+    s+='<text x="'+(x0+w*S/2)+'" y="'+(y0-10)+'" class="side">'+w+'</text><text x="'+(x0-16)+'" y="'+(y0+h*S/2+6)+'" class="side">'+h+'</text>';
+    s+='<text x="'+(x0+w*S+8)+'" y="'+(y0+h*S+4)+'" class="side" style="text-anchor:start;font-size:13px">（單位：公分）</text>';
+    return svgWrap(x0+w*S+110, y0+h*S+12, s);
+  }
+  function svgGrid(cells, cols, rows){
+    var S=38, s='', i, j;
+    for(i=0;i<=cols;i++) s+='<line x1="'+(4+i*S)+'" y1="4" x2="'+(4+i*S)+'" y2="'+(4+rows*S)+'" class="gridl"/>';
+    for(j=0;j<=rows;j++) s+='<line x1="4" y1="'+(4+j*S)+'" x2="'+(4+cols*S)+'" y2="'+(4+j*S)+'" class="gridl"/>';
+    cells.forEach(function(c){ s+='<rect x="'+(4+c[0]*S)+'" y="'+(4+c[1]*S)+'" width="'+S+'" height="'+S+'" class="gfill"/>'; });
+    return svgWrap(8+cols*S, 8+rows*S, s);
+  }
+  function svgRegion(shape, where){
+    var s, p;
+    if(shape==='square'){ s='<rect x="50" y="20" width="120" height="120" class="region"/>';
+      p=where==='in'?[110+ri(-25,25),88+ri(-25,25)]:where==='edge'?pick([[110,28],[170,88],[50,88],[110,148]]):pick([[200,40],[22,130],[205,140]]); }
+    else { s='<circle cx="110" cy="80" r="62" class="region"/>';
+      p=where==='in'?[110+ri(-20,20),88+ri(-20,20)]:where==='edge'?pick([[172,88],[48,88],[110,26]]):pick([[200,30],[22,140],[205,150]]); }
+    return svgWrap(224,160, s+'<text x="'+p[0]+'" y="'+p[1]+'" class="star">★</text>');
+  }
+  function svgDots(inside, outside){
+    var s='<rect x="60" y="16" width="120" height="120" class="region"/>', i;
+    for(i=0;i<inside;i++){ var cx=78+(i%4)*28+ri(-4,4), cy=36+Math.floor(i/4)*30+ri(-4,4); s+='<circle cx="'+cx+'" cy="'+cy+'" r="7" class="dot"/>'; }
+    for(i=0;i<outside;i++){ var left=i%2===0, ox=left?22+ri(-6,6):218+ri(-6,6), oy=28+Math.floor(i/2)*34; s+='<circle cx="'+ox+'" cy="'+oy+'" r="7" class="dot"/>'; }
+    return svgWrap(240,152,s);
+  }
+
+  /* ---------- NC-2-1-1 1000以內數的命名及說、讀、聽、寫、做 ---------- */
+  function g211_write(){
+    var h=ri(2,9), form=pick(['zeroTen','zeroOne','full']), t, o;
+    if(form==='zeroTen'){ t=0; o=ri(1,9); } else if(form==='zeroOne'){ t=ri(1,9); o=0; } else { t=ri(1,9); do{ o=ri(1,9); }while(o===t); }
+    var n=100*h+10*t+o, w;
+    if(form==='zeroTen') w=[[String(h)+'00'+o,'依照讀音逐字寫，多寫了0'],[10*h+o,'漏寫了十位的0'],[100*h+10*o,'0寫錯了位置']];
+    else if(form==='zeroOne') w=[[String(h)+'0'+t+'0','依照讀音逐字寫，多寫了0'],[10*h+t,'漏寫了個位的0'],[100*h+t,'十位和個位的位置弄錯了']];
+    else w=[[100*h+10*o+t,'十位和個位顛倒'],[String(h)+'00'+t+'0'+o,'依照讀音逐字寫'],[h+t+o,'把各位的數字相加']];
+    return Q('「'+cn3(n)+'」寫成數字是多少？', {choices:mc(n,w)});
+  }
+  function g211_blocks(){
+    var h=ri(2,5), t=pick([0,ri(1,9),ri(1,9)]), o=ri(1,9), n=100*h+10*t+o;
+    var w=[[h+t+o,'把積木的塊數直接相加，還沒建立「百、十、一」的位值'],[100*h+10*o+t,'十位和個位顛倒']];
+    if(t) w.push([100*h+o,'漏數了十條']); else w.push([10*h+o,'十位沒有積木時，忘了寫0']);
+    w.push([10*h+t*10+o,'把一片當成10']);
+    return Q('一片積木是100，一條是10，一小塊是1。下面的積木一共是多少？', {vis:svgBlocks(h,t,o), choices:mc(n,w)});
+  }
+  function g211_seq(){
+    var h=ri(2,8);
+    if(rnd()<0.5){ var s=100*h-2;
+      return Q(s+'、'+(s+1)+'、（　）、'+(s+3)+'\n照順序填填看，（　）裡是多少？', {num:100*h, errs:mk([
+        [(h-1)*1000+910,'跨過整百時，把'+(s+1)+'的下一個數寫成「'+((h-1)*1000+910)+'」'],[100*(h-1),'跨過整百時，百位沒有進1'],[100*h+10,'跨過整百時數錯']])});
+    }
+    var a=100*h-20;
+    return Q(a+'、'+(a+10)+'、（　）、'+(a+30)+'\n10個10個數，（　）裡是多少？', {num:100*h, errs:mk([
+      [(h-1)*1000+100,'跨過整百時，把'+(a+10)+'的下一個數寫成「'+((h-1)*1000+100)+'」'],[100*(h-1),'跨過整百時，百位沒有進1'],[a+11,'沒有10個10個數，只加了1']])});
+  }
+
+  /* ---------- NC-2-1-2 百位、位值換算 ---------- */
+  function g212_digit(){
+    var ds=sample([1,2,3,4,5,6,7,8,9],3), n=100*ds[0]+10*ds[1]+ds[2], tens=rnd()<0.6, d=tens?ds[1]:ds[0];
+    var e1='知道位名，但不知道這個數字代表的值', e2='位名弄錯了（分不清百位、十位、個位）';
+    if(tens) return Q('下面有關 '+n+' 中「'+d+'」的說法，哪一個正確？', {long:true, choices:mc(d+'是十位數字，表示'+(10*d),[
+      [d+'是十位數字，表示'+d,e1],[d+'是個位數字，表示'+d,e2],[d+'是百位數字，表示'+(100*d),e2]])});
+    return Q('下面有關 '+n+' 中「'+d+'」的說法，哪一個正確？', {long:true, choices:mc(d+'是百位數字，表示'+(100*d),[
+      [d+'是百位數字，表示'+d,e1],[d+'是十位數字，表示'+(10*d),e2],[d+'是個位數字，表示'+d,e2]])});
+  }
+  function g212_regroup(){
+    if(rnd()<0.6){ var h=ri(2,8), t=ri(1,9), o=ri(10,15), n=100*h+10*t+o;
+      return Q(h+'個百、'+t+'個十和'+o+'個一，合起來是多少？', {choices:mc(n,[
+        [String(h)+String(t)+String(o),'把個數直接並排寫'],[n-10,'沒有把'+o+'個一換成1個十和'+(o-10)+'個一'],[h+t+o,'把百、十、一的個數直接相加']])});
+    }
+    var h2=ri(2,7), t2=ri(11,19), n2=100*h2+10*t2;
+    return Q(h2+'個百和'+t2+'個十，合起來是多少？', {choices:mc(n2,[
+      [String(h2)+String(t2),'把個數直接並排寫'],[n2-100,'沒有把10個十換成1個百'],[h2+t2,'把百和十的個數直接相加']])});
+  }
+  function g212_tens(){
+    var k; do{ k=ri(21,99); }while(k%10===0);
+    var n=10*k;
+    return Q(n+'是幾個十？', {choices:mc(k+'個十',[
+      [Math.floor(k/10)+'個十','只看了百位數字'],[n+'個十','把整個數當成十的個數'],[(k%10)+'個十','只看了十位數字']])});
+  }
+
+  /* ---------- RC-2-1-1 用＜、＝、＞表示大小 ---------- */
+  var CMP_ERR='還不會用「＞、＜、＝」表示兩邊的大小關係';
+  function cmpChoices(L,Rv){ var sym=L>Rv?'＞':L<Rv?'＜':'＝'; return mc(sym, ['＞','＜','＝'].filter(function(x){ return x!==sym; }).map(function(x){ return [x,CMP_ERR]; })); }
+  function g2r11_cmp(){
+    var k=pick(['addmul','addsub','num']), L, Rv, ls, rs;
+    if(k==='addmul'){ var a=ri(2,6), b=ri(2,6); L=a+b; Rv=a*b; ls=a+' + '+b; rs=a+' × '+b; }
+    else if(k==='addsub'){ var c=ri(20,80), d=ri(2,9); L=c+d; Rv=c-d; ls=c+' + '+d; rs=c+' − '+d; if(rnd()<0.5){ var tt=L; L=Rv; Rv=tt; var ts=ls; ls=rs; rs=ts; } }
+    else { var ds=sample([1,2,3,4,5,6,7,8,9],2), z=pick([0,ri(1,9)]); L=100*ds[0]+10*z+ds[1]; Rv=100*ds[1]+10*z+ds[0]; ls=String(L); rs=String(Rv); }
+    return Q('比一比，在□中要填入「＞」、「＝」還是「＜」？\n'+ls+' □ '+rs, {choices:cmpChoices(L,Rv)});
+  }
+  function g2r11_which(){
+    var a=sample([1,2,3,4,5,6,7,8,9],2).sort(function(x,y){ return y-x; }), b=sample([1,2,3,4,5,6,7,8,9],2).sort(function(x,y){ return y-x; }), z=ri(0,9);
+    var big1=100*a[0]+a[1], small1=100*a[1]+a[0];          // 例：904 與 409
+    var big2=100*b[0]+10*b[1], small2=100*b[1]+10*b[0];    // 例：650 與 560
+    var same=100*ri(1,9)+10*z+ri(0,9);
+    var good=pick([[big1+' ＞ '+small1],[small2+' ＜ '+big2]])[0];
+    return Q('下面哪一個是對的？', {choices:mc(good,[
+      [small1+' ＞ '+big1,'比較三位數時，沒有先從百位比起'],[big2+' ＜ '+small2,'比較三位數時，沒有先從百位比起'],[same+' ＞ '+same,'一樣大的數要用「＝」，不能用「＞」']])});
+  }
+
+  /* ---------- NC-2-4-1 估算 ---------- */
+  function g241_price(){
+    var A=ri(1,4), B=ri(1,4), down=rnd()<0.4, a=100*A+pick([98,99]), b=down?100*B+pick([1,2]):100*B+pick([98,99]);
+    var ea=A+1, eb=down?B:B+1, est=100*(ea+eb);
+    var items=pick([['裙子','外套'],['上衣','短褲'],['書包','水壺']]);
+    return Q('買一件 '+a+' 元的'+items[0]+'和一件 '+b+' 元的'+items[1]+'，合起來最接近幾元？', {choices:mc(est+'元',[
+      [(est-100)+'元','估算時只看百位數字，沒有想到'+a+'很接近'+(100*ea)],[(est+100)+'元','估算時取整百的方向錯了'],[(est+200)+'元','估算時取整百的方向錯了']])});
+  }
+  function g241_diff(){
+    var A=ri(4,8), B=ri(1,A-2), a=100*A-pick([1,2]), b=100*B+pick([1,2]), est=100*(A-B);
+    return Q('下面哪個數最接近「'+a+' − '+b+'」的差？', {choices:mc(est,[
+      [est-100,'估算時只看百位數字，沒有取最接近的整百'],[est+100,'估算時取整百的方向錯了'],[est+200,'估算時取整百的方向錯了']])});
+  }
+
+  /* ---------- NC-2-5-1 錢幣 ---------- */
+  function moneyOpt(T){ return {t:T+'元的錢', h:svgMoney(decompose(T))}; }
+  function g251_pick(){
+    var T=100*ri(1,3)+10*ri(1,8)+pick([0,5,ri(1,4)]);
+    return Q('下面哪一個選項，合起來是 '+T+' 元？', {one:true, choices:mc(moneyOpt(T),[
+      [moneyOpt(T+10),'數錢時面額相加錯誤'],[moneyOpt(T-10),'數錢時面額相加錯誤'],[moneyOpt(T+50),'數錢時面額相加錯誤']])});
+  }
+  function g251_change(){
+    var p=100*ri(1,3)+10*ri(1,8)+pick([0,ri(1,9)]), c=500-p;
+    return Q('一本書 '+p+' 元，付了 500 元，要找回多少元？', {choices:mc(c+'元',[
+      [bigMinusSmall(500,p)+'元','退位減法算錯（用大數減小數）'],[(500+p)+'元','誤用加法'],[(c+100)+'元','退位後百位沒有減1']])});
+  }
+  function g251_exchange(){
+    if(rnd()<0.5) return Q('拿 10 張 100 元，全部可以換成幾張 500 元？', {choices:mc('2張',[
+      ['10張','換錢時沒有先算出一共多少元'],['5張','把500元看成5元來算'],['1張','把10張100元當成500元']])});
+    return Q('1000 元可以換成幾張 100 元？', {choices:mc('10張',[['100張','把1000元看成1000個1元'],['1張','不知道1000元等於10個100元'],['5張','換錢的方法還不熟']])});
+  }
+
+  /* ---------- NC-2-2-1 二位數加減直式 ---------- */
+  function g221_sub(){
+    var t1=ri(5,9), t2=ri(1,t1-1), o1=ri(0,7), o2=ri(o1+1,9), a=10*t1+o1, b=10*t2+o2, c=a-b;
+    return Q('寫成直式算算看：'+a+' − '+b+' = （　）', {vis:vert(a,b,'−'), num:c, errs:mk([
+      [10*(t1-t2)+(o2-o1),'個位不夠減時，用大數減小數'],[c+10,'退位後十位沒有減1'],[a+b,'把減法算成加法']])});
+  }
+  function g221_add(){
+    var o1=ri(3,9), o2=ri(10-o1,9), t1=ri(1,6), t2=ri(1,8-t1), a=10*t1+o1, b=10*t2+o2, c=a+b;
+    return Q('寫成直式算算看：'+a+' + '+b+' = （　）', {vis:vert(a,b,'+'), num:c, errs:mk([
+      [c-10,'進位時忘了加1'],[(t1+t2)*100+(o1+o2),'個位的和直接寫成兩位數，沒有進位'],[a-b>0?a-b:b-a,'把加法算成減法']])});
+  }
+
+  /* ---------- NC-2-2-2 三位數加減直式（不含兩次退位） ---------- */
+  function g222_add(){
+    var a=100*ri(1,7)+10*ri(0,8)+ri(3,9), o=a%10, b, c;
+    if(rnd()<0.5){ b=10*ri(1,8)+ri(10-o,9); } else { b=100*ri(1,9-Math.floor(a/100)-1)+10*ri(0,8)+ri(10-o,9); }
+    c=a+b;
+    var w=[[noCarry(a,b),'進位時忘了加1'],[c-100,'十位進到百位時漏加了1']];
+    if(b<100) w.unshift([a+b*10,'直式沒有對齊位數（把'+b+'往左移了一位）']);
+    return Q('寫成直式算算看：'+a+' + '+b+' = （　）', {vis:vert(a,b,'+'), num:c, errs:mk(w)});
+  }
+  function g222_sub(){
+    var h1=ri(3,9), h2=ri(1,h1-1), t1, t2, o1, o2, onesBorrow=rnd()<0.6;
+    if(onesBorrow){ t1=ri(1,9); t2=ri(0,t1-1); o1=ri(0,7); o2=ri(o1+1,9); }
+    else { t1=ri(0,7); t2=ri(t1+1,9); o2=ri(0,8); o1=ri(o2,9); }
+    var a=100*h1+10*t1+o1, b=100*h2+10*t2+o2, c=a-b;
+    return Q('寫成直式算算看：'+a+' − '+b+' = （　）', {vis:vert(a,b,'−'), num:c, errs:mk([
+      [bigMinusSmall(a,b),'不夠減時，用大數減小數'],[onesBorrow?c+10:c+100,'退位後前一位沒有減1'],[a+b,'把減法算成加法']])});
+  }
+
+  /* ---------- RC-2-4-1 加減互逆（同 NC-2-3-1） ---------- */
+  function g2r41_more(){
+    var tr=pick([['樟樹','榕樹','棵'],['紅花','白花','朵'],['雞','鴨','隻']]), a=ri(9,38), b=ri(5,19);
+    return Q('公園裡有 '+a+' '+tr[2]+tr[0]+'，'+tr[1]+'比'+tr[0]+'多 '+b+' '+tr[2]+'。'+tr[1]+'有多少'+tr[2]+'？', {num:a+b, unit:tr[2], errs:mk([
+      [Math.abs(a-b),'比較型問題用錯了運算'],[b,'把相差的數當成答案']])});
+  }
+  function g2r41_lessRev(){
+    var a=ri(31,59), b=ri(11,29), p=pick([['妹妹','哥哥'],['弟弟','姐姐']]);
+    return Q(p[0]+'有 '+a+' 元，'+p[0]+'比'+p[1]+'少 '+b+' 元。'+p[1]+'有多少元？', {num:a+b, unit:'元', errs:mk([
+      [a-b,'看到「少」就用減法，沒有想清楚誰的錢比較多'],[b,'把相差的數當成答案']])});
+  }
+  function g2r41_moreRev(){
+    var a=ri(51,89), b=ri(12,39), fl=pick([['紅花','白花','朵'],['紅球','藍球','顆']]);
+    return Q(fl[0]+'有 '+a+' '+fl[2]+'，'+fl[0]+'比'+fl[1]+'多 '+b+' '+fl[2]+'。'+fl[1]+'有多少'+fl[2]+'？', {num:a-b, unit:fl[2], errs:mk([
+      [a+b,'看到「多」就用加法，沒有想清楚誰比較多'],[b,'把相差的數當成答案']])});
+  }
+  function g2r41_unknown(){
+    var b=ri(15,48), c=ri(12,45);
+    return Q('姐姐原來有一些錢，買了一本 '+b+' 元的書後，還剩下 '+c+' 元。姐姐原來有多少元？', {num:b+c, unit:'元', errs:mk([
+      [Math.abs(b-c),'看到「買了、剩下」就用減法，還不會用加減互逆找原來的數'],[c,'把剩下的錢當成原來的錢']])});
+  }
+  function g2r41_check(){
+    var a=ri(52,98), b=ri(13,a-12), c=a-b, e='還不了解加減互逆，不知道可以用加法驗算減法';
+    return Q('哪一個算式可以用來驗算「'+a+' − '+b+' = '+c+'」？', {choices:mc(c+' + '+b+' = '+a,[
+      [a+' + '+b+' = '+(a+b),e],[a+' + '+c+' = '+(a+c),e],[(c>b?c+' − '+b+' = '+(c-b):b+' − '+c+' = '+(b-c)),e]])});
+  }
+
+  /* ---------- RC-2-1-2 遞移律 ---------- */
+  function split(s){ var x=ri(Math.max(10,s-60),Math.min(60,s-10)); return [x, s-x]; }
+  function g2r12_ineq(){
+    var M=ri(60,95), big=M+ri(3,15), small=M-ri(3,15), up=rnd()<0.5;
+    var X=up?split(big):split(small), Y=up?split(small):split(big);
+    var s1=X[0]+' + '+X[1], s2=Y[0]+' + '+Y[1];
+    var known=up?('已經知道 '+M+' ＜ '+s1+'，'+M+' ＞ '+s2+'。'):('已經知道 '+M+' ＞ '+s1+'，'+M+' ＜ '+s2+'。');
+    var sym=up?'＞':'＜', e='還不會利用中間的數，推理兩邊的大小關係';
+    return Q(known+'\n不用算，在□中要填哪一個？\n'+s1+' □ '+s2, {choices:mc(sym, ['＞','＜','＝'].filter(function(x){ return x!==sym; }).map(function(x){ return [x,e]; }))});
+  }
+  function g2r12_rel(){
+    if(rnd()<0.5) return Q('甲和乙一樣重，乙比丙重。三樣東西中，誰最輕？', {choices:mc('丙',[['甲','還不會推理三樣東西的輕重關係'],['乙','還不會推理三樣東西的輕重關係'],['一樣重','還不會推理三樣東西的輕重關係']])});
+    var n=pick([['小芳','小玉','小智'],['方方','婷婷','元元']]);
+    return Q(n[0]+'比'+n[1]+'高，'+n[1]+'比'+n[2]+'高。三個人中，誰最矮？', {choices:mc(n[2],[[n[0],'還不會推理三個人的高矮關係'],[n[1],'還不會推理三個人的高矮關係'],['一樣高','還不會推理三個人的高矮關係']])});
+  }
+  function g2r12_eq(){
+    var S=ri(250,350), xs=sample([120,125,130,135,140,145],3), es=xs.map(function(x){ return x+' + '+(S-x); });
+    return Q('已經知道「'+es[0]+' = '+es[1]+'」，「'+es[1]+' = '+es[2]+'」。\n哪一個算式的和最大？', {long:true, choices:mc('一樣大', es.map(function(e){ return [e,'不了解「＝」的遞移關係，沒有發現三個算式一樣大']; }))});
+  }
+
+  /* ---------- RC-2-2-1 三數相加，順序不影響和 ---------- */
+  function g2r21_who(){
+    var a=ri(31,58), b=ri(15,29), c=ri(10,19), S=a+b+c, e='不了解三個數相加時，先算哪兩個都可以';
+    return Q('哥哥有 '+a+' 元，弟弟有 '+b+' 元，妹妹有 '+c+' 元，三個人共有多少元？\n甲：'+a+' + '+b+' = '+(a+b)+'，'+(a+b)+' + '+c+' = '+S+
+      '\n乙：'+a+' + '+c+' = '+(a+c)+'，'+(a+c)+' + '+b+' = '+S+'\n丙：'+b+' + '+c+' = '+(b+c)+'，'+(b+c)+' + '+a+' = '+S+'\n誰的算法正確？', {long:true, choices:mc('甲、乙、丙都正確',[
+      ['只有甲正確',e],['只有乙正確',e],['只有丙正確',e]])});
+  }
+  function g2r21_num(){
+    var a=ri(21,48), b=ri(11,39), c=ri(12,29), S=a+b+c;
+    return Q('已經知道「'+a+' + '+b+' + '+c+' = '+S+'」。\n那麼「'+c+' + '+a+' + '+b+' = （　）」', {num:S, errs:mk([
+      [c+a,'只算了前兩個數'],[S+c,'不了解加法的順序改變，和不會變']])});
+  }
+
+  /* ---------- NC-2-8-1 加與減兩步驟 ---------- */
+  function g281_park(){
+    var a=ri(60,95), b=ri(11,25), c=ri(4,9);
+    return Q('停車場原來有 '+a+' 輛車，出去 '+b+' 輛後，又出去 '+c+' 輛。現在停車場有多少輛車？', {num:a-b-c, unit:'輛', errs:mk([
+      [a-b,'只算了第一步'],[a-b+c,'第二步誤用加法（「又出去」也是變少）'],[a+b+c,'誤用加法']])});
+  }
+  function g281_cookie(){
+    var a=ri(35,60), b=ri(8,15), c=ri(8,15);
+    return Q('媽媽買了 '+a+' 塊餅乾，奇奇吃了 '+b+' 塊，哥哥吃了 '+c+' 塊。還剩下多少塊餅乾？', {num:a-b-c, unit:'塊', errs:mk([
+      [a-b,'只算了第一步'],[a-c,'只算了一個人吃掉的'],[b+c,'只算出兩個人一共吃了多少']])});
+  }
+  function g281_paper(){
+    var a=ri(25,48), b=ri(12,29), c=ri(8,19);
+    return Q('老師原來有 '+a+' 包色紙，買了 '+b+' 包後，又買了 '+c+' 包。現在有多少包色紙？', {num:a+b+c, unit:'包', errs:mk([
+      [a+b,'只算了第一步'],[a+b-c,'第二步誤用減法']])});
+  }
+
+  /* ---------- NC-2-6-1 乘法的意義 ---------- */
+  function g261_repeat(){
+    var k=ri(2,9), n=ri(3,6), e=[];
+    for(var i=0;i<n;i++) e.push(k);
+    return Q(e.join(' + ')+' 可以寫成哪一個乘法算式？', {choices:mc(k+' × '+n,[
+      [k+' × '+k,'沒有數清楚有幾個'+k+'相加'],[n+' × '+n,'乘法算式中的數寫錯了'],[k+' + '+n,'還不了解乘法是相同的數連加']])});
+  }
+  function g261_times(){
+    var k=ri(3,9), n=ri(2,5);
+    return Q(k+' 的 '+n+' 倍是多少？', {num:k*n, errs:mk([[k+n,'把「倍」當成加法'],[Number(String(k)+String(n)),'把兩個數並排寫']])});
+  }
+  function g261_groups(){
+    var t=pick([['🍎','盤'],['⭐','排'],['🍬','包']]), k=ri(3,6), n=ri(3,5), v='<div class="groups">';
+    for(var i=0;i<n;i++) v+=grp(t[0],k);
+    return Q('每'+t[1]+'一樣多。一共有幾個？用乘法算式記下來。', {vis:v+'</div>', choices:mc(k+' × '+n+' = '+(k*n),[
+      [k+' + '+n+' = '+(k+n),'用加法記錄，還不了解乘法的意義'],[k+' × '+(n+1)+' = '+(k*(n+1)),'沒有數清楚有幾'+t[1]],[k+' × '+k+' = '+(k*k),'乘法算式中的數寫錯了']])});
+  }
+
+  /* ---------- NC-2-6-2 乘法解題 ---------- */
+  function g262_buy(){
+    var it=pick([['一支冰棒','支'],['一個麵包','個'],['一枝鉛筆','枝']]), k=ri(4,9), n=ri(4,9);
+    return Q(it[0]+'賣 '+k+' 元，'+n+' '+it[1]+'賣多少元？', {num:k*n, unit:'元', errs:mk([
+      [k+n,'把價錢和數量相加，還不會用乘法解題'],[k*(n-1),'九九乘法還不熟'],[k*(n+1),'九九乘法還不熟']])});
+  }
+  function g262_box(){
+    var k=ri(4,9), n=ri(4,9);
+    return Q('一盒蛋糕有 '+k+' 塊，'+n+' 盒共有多少塊？', {choices:mc((k*n)+'塊',[
+      [(k+n)+'塊','把盒數和每盒的數量相加'],[(k*n-k)+'塊','九九乘法還不熟'],[(k*n+k)+'塊','九九乘法還不熟']])});
+  }
+  function g262_cmp(){
+    var k=pick([10,2,5]), a=ri(2,6), b=a+ri(2,4);
+    return Q(k+' × '+a+' 比 '+k+' × '+b+' 少多少個 '+k+'？', {choices:mc('少'+(b-a)+'個'+k,[
+      ['少'+a+'個'+k,'只看了其中一個乘數'],['少'+b+'個'+k,'只看了其中一個乘數'],['少'+(a+b)+'個'+k,'把兩個乘數相加']])});
+  }
+
+  /* ---------- NC-2-7-1 九九乘法 ---------- */
+  function g271_fact(){
+    var a=ri(3,9), b=ri(4,9);
+    return Q('算算看：'+a+' × '+b+' = （　）', {num:a*b, errs:mk([
+      [a*(b-1),'九九乘法還不熟（背成相鄰的乘法）'],[a*(b+1),'九九乘法還不熟（背成相鄰的乘法）'],[a+b,'把乘法算成加法']])});
+  }
+  function g271_extend(){
+    var a=ri(4,9), eleven=rnd()<0.4, m=eleven?11:10, base=eleven?10:9;
+    return Q('已經知道「'+a+' × '+base+' = '+(a*base)+'」。\n'+a+' × '+m+' = （　）', {num:a*m, errs:mk([
+      [a*base+1,'只加了1，還不了解多一個'+a+'要加'+a],[a*base+base,'加錯了數，還不了解多一個'+a+'要加'+a]])});
+  }
+
+  /* ---------- RC-2-3-1 乘法交換律 ---------- */
+  function g2r31_swap(){
+    var a=ri(11,15), b=ri(3,6), c=a*b;
+    return Q('樂樂用「'+a+' × '+b+' = '+c+'」算出共有 '+c+' 個點心。\n'+b+' × '+a+' = （　）', {num:c, errs:mk([
+      [a+b,'把乘法算成加法'],[Number(String(b)+String(a)),'把兩個數並排寫']])});
+  }
+  function g2r31_choice(){
+    var a=ri(3,9), b=ri(4,9); if(a===b) b=a===9?8:a+1;
+    var c=a*b, e='還不了解兩數相乘，交換順序答案不變';
+    return Q('已經知道「'+a+' × '+b+' = '+c+'」。下面哪一個算式的答案也是 '+c+'？', {choices:mc(b+' × '+a,[
+      [a+' + '+b,e],[a+' × '+(b+1),e],[b+' × '+b,e]])});
+  }
+
+  /* ---------- NC-2-8-2 先乘後加（減）兩步驟 ---------- */
+  function g282_candy(){
+    var p=ri(3,9), n=ri(4,9), M=ri(Math.max(50,p*n+10),99), r=M-p*n;
+    return Q('一顆糖果 '+p+' 元。姐姐有 '+M+' 元，買了 '+n+' 顆糖果，還剩下多少元？', {num:r, unit:'元', errs:mk([
+      [p*n,'只算了第一步（買糖果花了多少錢），忘了再算剩下多少'],[M-n,'沒有先用乘法算出花了多少錢'],[M-p,'只減了一顆糖果的錢'],[M+p*n,'第二步誤用加法']])});
+  }
+  function g282_save(){
+    var B=ri(3,15), d=ri(3,9), n=ri(4,9);
+    return Q('撲滿裡原來有 '+B+' 元，姐姐每天存 '+d+' 元，存了 '+n+' 天後，撲滿裡共有多少元？', {num:B+d*n, unit:'元', errs:mk([
+      [d*n,'只算了第一步，忘了加上原來的錢'],[B+d+n,'沒有用乘法，把三個數相加'],[(B+d)*n,'先加後乘，計算的順序錯了']])});
+  }
+  function g282_coins(){
+    var n=ri(4,9), m=ri(3,9);
+    return Q('我有 '+n+' 個 5 元硬幣，爸爸又給我 '+m+' 元。我現在有多少元？', {num:5*n+m, unit:'元', errs:mk([
+      [5*n,'只算了第一步，忘了加上爸爸給的錢'],[n+5+m,'沒有用乘法，把三個數相加'],[n+m,'把硬幣的個數當成錢']])});
+  }
+  function g282_seats(){
+    var r=ri(3,6), k=ri(5,8), s=ri(2,6);
+    return Q('教室裡有 '+r+' 排椅子，每排 '+k+' 張，其中 '+s+' 張壞掉了。好的椅子有幾張？', {num:r*k-s, unit:'張', errs:mk([
+      [r*k,'只算了第一步，忘了減去壞掉的椅子'],[r*k+s,'第二步誤用加法'],[r+k-s,'沒有用乘法']])});
+  }
+
+  /* ---------- NC-2-11-1 不同個別單位 ---------- */
+  var UNIT_ERR='以為量出來的數比較大，用來量的東西就比較長（單位大小與個數的關係弄反了）';
+  function g2111_steps(){
+    var a=ri(18,26), b=a-ri(3,8), p=pick([['小新','小葵'],['阿明','小美']]), sw=rnd()<0.5;
+    var A=sw?p[1]:p[0], B=sw?p[0]:p[1];
+    return Q(A+'和'+B+'用自己的腳步量同一條走廊。'+A+'走了 '+a+' 步，'+B+'走了 '+b+' 步。誰的一步比較長？', {choices:mc(B,[[A,UNIT_ERR],['一樣長','還不了解用不同的單位量，數量會不一樣']])});
+  }
+  function g2111_pencils(){
+    var n=['樂樂','美美','恩恩'], v=sample([5,6,7,8,9],3), mi=v.indexOf(Math.min.apply(null,v)), ma=v.indexOf(Math.max.apply(null,v));
+    var other=[0,1,2].filter(function(i){ return i!==mi && i!==ma; })[0];
+    return Q('樂樂、美美、恩恩用自己的鉛筆量同一張桌子。樂樂量了 '+v[0]+' 枝，美美量了 '+v[1]+' 枝，恩恩量了 '+v[2]+' 枝。誰的鉛筆最長？', {choices:mc(n[mi],[
+      [n[ma],UNIT_ERR],[n[other],'還不了解用不同的單位量，數量會不一樣'],['一樣長','還不了解用不同的單位量，數量會不一樣']])});
+  }
+  function g2111_switch(){
+    var a=ri(12,18), b=a+ri(6,12);
+    return Q('小逸用鋼筆量公布欄，量了 '+a+' 次。換另一樣東西量同一個公布欄，量了 '+b+' 次。換的東西比鋼筆長還是短？', {choices:mc('比鋼筆短',[
+      ['比鋼筆長',UNIT_ERR],['和鋼筆一樣長','還不了解用不同的單位量，數量會不一樣']])});
+  }
+
+  /* ---------- NC-2-11-2 公分、公尺 ---------- */
+  function g2112_conv(){
+    var a=ri(1,5), b=rnd()<0.6?ri(1,9):ri(11,89), n=100*a+b;
+    var w=[[(String(a)+String(b))+'公分','把公尺和公分的數直接並排寫'],[(a+b)+'公分','把公尺和公分的數直接相加']];
+    if(b<10) w.splice(1,0,[(100*a+10*b)+'公分','公分的數寫錯了位置']); else w.push([(10*a+b)+'公分','以為1公尺是10公分']);
+    return Q('「'+a+' 公尺 '+b+' 公分」是幾公分？', {choices:mc(n+'公分',w)});
+  }
+  function g2112_tall(){
+    var cm=ri(132,148), m1=cm-ri(3,9), m2=cm+ri(2,6), names=shuffle(['小維','小奇','小峰']);
+    var people=shuffle([{n:names[0], v:m1, txt:'1 公尺 '+(m1-100)+' 公分'},{n:names[1], v:cm, txt:cm+' 公分'},{n:names[2], v:m2, txt:'1 公尺 '+(m2-100)+' 公分'}]);
+    var top=people.filter(function(p){ return p.v===m2; })[0], cmP=people.filter(function(p){ return p.v===cm; })[0], low=people.filter(function(p){ return p.v===m1; })[0];
+    return Q('三個人比身高：'+people.map(function(p){ return p.n+'是 '+p.txt; }).join('，')+'。誰最高？', {choices:mc(top.n,[
+      [cmP.n,'沒有把公尺換成公分就比較（只看到數字比較大）'],[low.n,'公尺和公分的比較還不熟']])});
+  }
+  function g2112_back(){
+    var a=ri(1,4), b=ri(1,9), n=100*a+b;
+    return Q(n+' 公分是幾公尺幾公分？', {long:true, choices:mc(a+'公尺'+b+'公分',[
+      [(10*a)+'公尺'+b+'公分','以為1公尺是10公分'],[a+'公尺'+(10*b)+'公分','公分的數寫錯了位置'],[(10*a+b)+'公尺','公尺和公分的換算還不清楚']])});
+  }
+
+  /* ---------- SC-2-3-1 用直尺量長度 ---------- */
+  function g231_pencil(){
+    var F=ri(1,5), a=F+ri(1,3), len=ri(5,9), b=a+len;
+    return Q('這把尺斷掉了。鉛筆的長度是幾公分？', {vis:svgRuler(F, Math.max(b+1,F+12), {kind:'pencil', a:a, b:b}), num:len, unit:'公分', errs:mk([
+      [b,'直接讀尾端的刻度，沒有從鉛筆的起點開始數'],[len+1,'數的是刻度線，不是1公分的格數'],[a,'讀了起點的刻度']])});
+  }
+  function g231_flags(){
+    var a=ri(1,3), m=a+ri(2,4), c=m+ri(3,5);
+    return Q('甲旗子到丙旗子的距離是幾公分？', {vis:svgRuler(0, c+2, {kind:'flags', flags:[{lab:'甲',v:a},{lab:'乙',v:m},{lab:'丙',v:c}]}), num:c-a, unit:'公分', errs:mk([
+      [c,'直接讀丙旗子的刻度，沒有從甲旗子開始數'],[c-a+1,'數的是刻度線，不是1公分的格數'],[m-a,'看錯了旗子']])});
+  }
+
+  /* ---------- NC-2-12-1 容量 ---------- */
+  function g2121_full(){
+    var lv=[[1,'裝滿的瓶子'],[0.72,'裝了大半瓶'],[0.45,'裝了一半'],[0.2,'裝了一點點']];
+    function o(x){ return {t:x[1], h:svgBottle(x[0])}; }
+    return Q('下面 4 個一樣的瓶子都裝了水。哪一個瓶子裡的水是瓶子的容量？', {pics:true, choices:mc(o(lv[0]), lv.slice(1).map(function(x){ return [o(x),'還不了解「容量」是容器裝滿時可以裝的量']; }))});
+  }
+  function g2121_cups(){
+    var v=sample([4,5,6,7,8,9],3), ma=v.indexOf(Math.max.apply(null,v)), mi=v.indexOf(Math.min.apply(null,v)), n=['甲','乙','丙'];
+    var other=[0,1,2].filter(function(i){ return i!==mi && i!==ma; })[0];
+    return Q('用同樣大小的杯子，把三個水壺裝滿水。甲壺倒了 '+v[0]+' 杯，乙壺倒了 '+v[1]+' 杯，丙壺倒了 '+v[2]+' 杯。哪一個水壺的容量最大？', {choices:mc(n[ma]+'壺',[
+      [n[mi]+'壺','以為倒的杯數比較少，容量比較大'],[n[other]+'壺','還不會用個別單位比較容量'],['一樣大','還不會用個別單位比較容量']])});
+  }
+  function g2121_unit(){
+    var n=ri(5,8);
+    return Q('哥哥用大杯子量一個水壺，裝了 '+n+' 杯。妹妹用小杯子量同一個水壺。誰量到的杯數比較多？', {choices:mc('妹妹',[
+      ['哥哥','以為杯子比較大，量到的杯數也比較多'],['一樣多','還不了解用不同大小的杯子量，杯數會不一樣']])});
+  }
+
+  /* ---------- NC-2-12-2 重量 ---------- */
+  var FRUIT=[['🍎','蘋果'],['🍐','梨子'],['🍊','橘子'],['🍌','香蕉'],['🍉','西瓜'],['🍇','葡萄']];
+  function g2122_balance(){
+    var two=sample(FRUIT,2), leftHeavy=rnd()<0.5, heavy=leftHeavy?two[0]:two[1], light=leftHeavy?two[1]:two[0];
+    return Q('看天平比一比，哪一個比較重？', {vis:svgBalance(leftHeavy, two[0][0], two[1][0]), choices:mc({t:heavy[1],h:emo(heavy[0])+' '+az(heavy[1])},[
+      [{t:light[1],h:emo(light[0])+' '+az(light[1])},'以為天平高的那一邊比較重'],['一樣重','還不會看天平比較輕重']])});
+  }
+  function g2122_units(){
+    var two=sample(FRUIT,2), a=ri(6,12), b=a-ri(2,4);
+    return Q(two[0][1]+'和 '+a+' 個積木一樣重，'+two[1][1]+'和 '+b+' 個積木一樣重。哪一個比較重？重幾個積木？', {long:true, choices:mc(two[0][1]+'，重'+(a-b)+'個積木',[
+      [two[1][1]+'，重'+(a-b)+'個積木','輕重關係弄反了'],[two[0][1]+'，重'+(a+b)+'個積木','把兩個數相加'],[two[0][1]+'，重'+a+'個積木','沒有算出相差多少']])});
+  }
+
+  /* ---------- SC-2-4-2 周長 ---------- */
+  function g242_rect(){
+    var w=ri(4,8), h=ri(2,5); if(w===h) w++;
+    var p=2*(w+h);
+    return Q('下圖長方形的周長是幾公分？', {vis:svgRectLab(w,h), num:p, unit:'公分', errs:mk([
+      [w+h,'只加了圖上標出的兩個邊，忘了長方形有4個邊'],[w*h,'算成了面積（格子數）'],[2*w+h,'漏加了一個邊'],[w+2*h,'漏加了一個邊']])});
+  }
+  function g242_grid(){
+    var cols=6, rows=4, cells=[[2,1]], key={'2,1':1}, k=ri(4,7), guard=0;
+    while(cells.length<k && guard++<200){
+      var c=pick(cells), d=pick([[1,0],[-1,0],[0,1],[0,-1]]), x=c[0]+d[0], y=c[1]+d[1];
+      if(x<0||y<0||x>=cols||y>=rows||key[x+','+y]) continue;
+      key[x+','+y]=1; cells.push([x,y]);
+    }
+    var per=0; cells.forEach(function(c){ [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){ if(!key[(c[0]+d[0])+','+(c[1]+d[1])]) per++; }); });
+    return Q('每一個方格的邊長都是 1 公分。藍色圖形的周長是幾公分？', {vis:svgGrid(cells,cols,rows), num:per, unit:'公分', errs:mk([
+      [cells.length,'數了格子的個數（面積），不是周長'],[per-2,'沿著邊數的時候漏數了'],[per+2,'沿著邊數的時候多數了']])});
+  }
+  function g242_square(){
+    var a=ri(3,9);
+    return Q('正方形的一邊是 '+a+' 公分，它的周長是幾公分？', {num:4*a, unit:'公分', errs:mk([
+      [2*a,'只算了兩個邊'],[a+4,'把邊長和邊的個數相加'],[a,'還不了解周長是圖形一圈的長度']])});
+  }
+
+  /* ---------- NC-2-13-1 報讀幾時幾分 ---------- */
+  function timeErrs(h,m){
+    var w=[], h1=h%12+1;
+    if(m>=30) w.push([h1,m,'時針快到下一個數時，誤讀成下一個小時']);
+    var mh=Math.floor(m/5)||12;
+    if(mh!==h) w.push([mh,h*5%60,'時針和分針弄反了']);
+    if(m>=10 && m%5!==0) w.push([h,Math.floor(m/5),'分針指的數字直接讀成分，沒有5個一數']);
+    else if(m<10) w.push([h,m*5,'分針的小格當成大格來數']);
+    w.push([h,(m+5)%60,'分針的格數數錯了']);
+    return w;
+  }
+  function g2131_digital(){
+    var h=ri(1,12), m=rnd()<0.5?ri(45,59):ri(1,44);
+    return Q('鐘面上的時刻和下面哪一個數字鐘的時刻一樣？', {vis:svgClock(h,m), choices:mc(h+' : '+pad2(m), timeErrs(h,m).map(function(e){ return [e[0]+' : '+pad2(e[1]), e[2]]; }))});
+  }
+  function g2131_read(){
+    var h=ri(1,12), m=rnd()<0.5?ri(40,58):ri(2,39);
+    return Q('鐘面上是幾點幾分？', {vis:svgClock(h,m), choices:mc(h+'點'+m+'分', timeErrs(h,m).map(function(e){ return [e[0]+'點'+e[1]+'分', e[2]]; }))});
+  }
+  function g2131_pick(){
+    var h=ri(1,11), m=rnd()<0.5?ri(45,58):ri(5,40);
+    function o(hh,mm,t){ return {t:t||(hh+'點'+mm+'分的鐘面'), h:svgClock(hh,mm,120)}; }
+    return Q('哪一個鐘面是 '+h+' 點 '+m+' 分？', {pics:true, choices:mc(o(h,m),[
+      [o(h%12+1,m),'時針的位置判斷錯誤（時針還沒到下一個數）'],[{t:'時針分針相反的鐘面', h:svgClockRaw(m*6, (h%12)*30+m/2, 120)},'時針和分針弄反了'],[o(h,(m+10)%60),'分針的格數數錯了']])});
+  }
+
+  /* ---------- NC-2-13-2 整點到整點經過幾小時 ---------- */
+  function g2132_span(){
+    var h1=ri(1,11), k=ri(2,5), h2=(h1+k-1)%12+1;
+    var ev=pick(['園遊會','運動會','音樂會']);
+    return Q(ev+'開始和結束的時刻如下圖。'+ev+'一共有幾小時？', {vis:'<div class="pair"><div><b>'+az('開始')+'</b>'+svgClock(h1,0,140)+'</div><div><b>'+az('結束')+'</b>'+svgClock(h2,0,140)+'</div></div>',
+      num:k, unit:'小時', errs:mk([[h2,'直接讀了結束的時刻'],[k+1,'把開始的整點也數進去了'],[k-1,'數的時候少數了一小時']])});
+  }
+  function g2132_after(){
+    var h1=ri(1,5), k=ri(2,4), e=h1+k;
+    return Q('鐘面上是弟弟下午開始上足球課的時刻，足球課上了 '+k+' 小時。弟弟在下午幾點下課？', {vis:svgClock(h1,0), choices:mc('下午'+e+'點',[
+      ['下午'+k+'點','把經過的時間當成了時刻'],['下午'+(e+1)+'點','數的時候多數了一小時'],['下午'+(e-1)+'點','數的時候少數了一小時']])});
+  }
+  function g2132_half(){
+    var h=ri(1,6), k=ri(1,3);
+    return Q('從下午 '+h+':30 到下午 '+(h+k)+':30，一共經過幾小時？', {num:k, unit:'小時', errs:mk([[30,'把分鐘的數當成了答案'],[k+1,'數的時候多數了一小時'],[h+k,'直接讀了結束的時刻']])});
+  }
+
+  /* ---------- SC-2-1-1 角、頂點、邊 ---------- */
+  function g211s_count(){
+    var n=pick([3,4,5,6]), what=pick(['角','頂點','邊']), unit=what==='邊'?'條':'個';
+    return Q('下面的圖形有幾'+unit+what+'？', {vis:svgPolygon(n), num:n, unit:unit, errs:mk([
+      [n+1,'數的時候重複數了起點'],[n-1,'數的時候漏數了一'+unit],[2*n,'把邊和角（頂點）一起數了']])});
+  }
+  function g211s_rect(){
+    var s=pick([['長方形',4],['三角形',3],['正方形',4]]), n=s[1];
+    return Q(s[0]+'有幾個頂點、幾條邊、幾個角？', {long:true, choices:mc(n+'個頂點、'+n+'條邊、'+n+'個角',[
+      [n+'個頂點、'+(n===4?2:n-1)+'條邊、'+n+'個角','邊的數量數錯了'],[(n*2)+'個頂點、'+n+'條邊、'+n+'個角','頂點的數量數錯了'],[n+'個頂點、'+n+'條邊、'+(n-1)+'個角','角的數量數錯了']])});
+  }
+
+  /* ---------- SC-2-1-3 內部、外部、周界 ---------- */
+  function g213_where(){
+    var where=pick(['in','out','edge']), shape=pick(['square','circle']), lab={in:'內部',out:'外部',edge:'周界'}, e='還不了解圖形的內部、外部和周界';
+    return Q('星星在圖形的什麼地方？', {vis:svgRegion(shape,where), choices:mc(lab[where], ['in','out','edge'].filter(function(x){ return x!==where; }).map(function(x){ return [lab[x],e]; }))});
+  }
+  function g213_count(){
+    var k=ri(3,8), j=ri(2,5); if(k===j) k++;
+    return Q('正方形的內部有幾個●？', {vis:svgDots(k,j), num:k, unit:'個', errs:mk([[k+j,'把外部的也數進去了'],[j,'數成了外部的']])});
+  }
+
+  var GEN={
+    'NC-2-1-1':[g211_write,g211_blocks,g211_seq],
+    'NC-2-1-2':[g212_digit,g212_regroup,g212_tens],
+    'RC-2-1-1':[g2r11_cmp,g2r11_which],
+    'NC-2-4-1':[g241_price,g241_diff],
+    'NC-2-5-1':[g251_pick,g251_change,g251_exchange],
+    'NC-2-2-1':[g221_sub,g221_add],
+    'NC-2-2-2':[g222_add,g222_sub],
+    'RC-2-4-1':[g2r41_more,g2r41_lessRev,g2r41_moreRev,g2r41_unknown,g2r41_check],
+    'RC-2-1-2':[g2r12_ineq,g2r12_rel,g2r12_eq],
+    'RC-2-2-1':[g2r21_who,g2r21_num],
+    'NC-2-8-1':[g281_park,g281_cookie,g281_paper],
+    'NC-2-6-1':[g261_repeat,g261_times,g261_groups],
+    'NC-2-6-2':[g262_buy,g262_box,g262_cmp],
+    'NC-2-7-1':[g271_fact,g271_extend],
+    'RC-2-3-1':[g2r31_swap,g2r31_choice],
+    'NC-2-8-2':[g282_candy,g282_save,g282_coins,g282_seats],
+    'NC-2-11-1':[g2111_steps,g2111_pencils,g2111_switch],
+    'NC-2-11-2':[g2112_conv,g2112_tall,g2112_back],
+    'SC-2-3-1':[g231_pencil,g231_flags],
+    'NC-2-12-1':[g2121_full,g2121_cups,g2121_unit],
+    'NC-2-12-2':[g2122_balance,g2122_units],
+    'SC-2-4-2':[g242_rect,g242_grid,g242_square],
+    'NC-2-13-1':[g2131_digital,g2131_read,g2131_pick],
+    'NC-2-13-2':[g2132_span,g2132_after,g2132_half],
+    'SC-2-1-1':[g211s_count,g211s_rect],
+    'SC-2-1-3':[g213_where,g213_count]
+  };
+  var AREAS=[
+    {id:'num', name:'數字王國', boss:'🐲', bossName:'數字龍', codes:['NC-2-1-1','NC-2-1-2','RC-2-1-1','NC-2-4-1','NC-2-5-1']},
+    {id:'calc', name:'加減火山', boss:'🦖', bossName:'直式恐龍', codes:['NC-2-2-1','NC-2-2-2','RC-2-4-1','RC-2-1-2','RC-2-2-1','NC-2-8-1']},
+    {id:'mult', name:'乘法工廠', boss:'🤖', bossName:'九九機器人', codes:['NC-2-6-1','NC-2-6-2','NC-2-7-1','RC-2-3-1','NC-2-8-2']},
+    {id:'meas', name:'測量森林', boss:'🐙', bossName:'量尺章魚', codes:['NC-2-11-1','NC-2-11-2','SC-2-3-1','NC-2-12-1','NC-2-12-2','SC-2-4-2']},
+    {id:'time', name:'時間城堡', boss:'👾', bossName:'時鐘怪獸', codes:['NC-2-13-1','NC-2-13-2','SC-2-1-1','SC-2-1-3']}
+  ];
+  // 32 題：〈學扶題對照表〉中全國錯誤率最高、或是核心的指標出 2 題，其餘 1 題。
+  var PLAN={'NC-2-1-1':1,'NC-2-1-2':1,'RC-2-1-1':1,'NC-2-4-1':1,'NC-2-5-1':1,
+    'NC-2-2-1':1,'NC-2-2-2':2,'RC-2-4-1':2,'RC-2-1-2':1,'RC-2-2-1':1,'NC-2-8-1':1,
+    'NC-2-6-1':1,'NC-2-6-2':1,'NC-2-7-1':1,'RC-2-3-1':1,'NC-2-8-2':2,
+    'NC-2-11-1':1,'NC-2-11-2':1,'SC-2-3-1':2,'NC-2-12-1':1,'NC-2-12-2':1,'SC-2-4-2':1,
+    'NC-2-13-1':2,'NC-2-13-2':2,'SC-2-1-1':1,'SC-2-1-3':1};
+
+  /*T*/
+  /* ---------- 指標說明（老師看的文字，不加注音） ---------- */
+  var CODES={
+    'NC-2-1-1':{name:'1000以內整數的命名及說、讀、聽、寫、做', tip:'用百格板、積木條、小方塊做「幾個百、幾個十、幾個一」，再寫成數字；聽寫時特別注意中間有0的數（三百零五寫成305，不是3005）。可搭配學扶教材 NC-2-1-1。'},
+    'NC-2-1-2':{name:'認識「百位」的位名，並進行1000以內位值單位的換算', tip:'用定位板說出每個數字的位名與代表的值（524 的 2 表示 20）；練習「12個一、15個十」這類需要換算的題目。可搭配學扶教材 NC-2-1-2。'},
+    'RC-2-1-1':{name:'用＜、＝與＞表示數量大小關係', tip:'先分別算出（或比較出）兩邊的大小，再選符號；比較三位數時從百位比起。可搭配學扶教材 RC-2-1-1。'},
+    'NC-2-4-1':{name:'簡單的二位數及三位數的加減估算，並檢驗答案的合理性', tip:'用生活中的價錢情境，先把每個數取到最接近的整百，再加減；用數線看出 299 比較接近 300。可搭配學扶教材 NC-2-4-1。'},
+    'NC-2-5-1':{name:'認識100元、500元、1000元等錢幣，並能用1000元以內的錢幣數錢、換錢、付錢、找錢', tip:'用仿真錢幣由大面額數到小面額；扮演商店練習付 500 元找錢，找錢時可以用「往上數」的方式。可搭配學扶教材 NC-2-5-1。'},
+    'NC-2-2-1':{name:'熟練二位數加減直式計算', tip:'用積木操作連結直式中的進位與退位；檢查個位不夠減時是否會向十位借1，而不是用大數減小數。可搭配學扶教材 NC-2-2-1。'},
+    'NC-2-2-2':{name:'熟練三位數加減直式計算（不含兩次退位）', tip:'先確認位數對齊；進位、退位時在直式上做記號，並用積木說明「借1個十變成10個一」。可搭配學扶教材 NC-2-2-2。'},
+    'RC-2-4-1':{name:'理解加減互逆，並運用於驗算與解題（同 NC-2-3-1）', hot:true, tip:'比較型問題不要只抓「多、少」關鍵字；教師主動提供線段圖，讓孩子看出「9+5=14」和「14−5=9」說的是同一件事；只用加法驗算減法。可搭配學扶教材 NC-2-3-1（同 RC-2-4-1）。'},
+    'RC-2-1-2':{name:'認識＜、＝與＞的遞移律', tip:'用三個實物排排看（甲＞乙、乙＞丙，所以甲＞丙），再推廣到算式；提醒「不用算」也能比較。可搭配學扶教材 RC-2-1-2。'},
+    'RC-2-2-1':{name:'認識加法順序改變並不影響其和的性質', tip:'讓孩子用不同順序加三個數，比較結果都一樣；鼓勵先湊成整十再加。可搭配學扶教材 RC-2-2-1。'},
+    'NC-2-8-1':{name:'加與減兩步驟問題（不含併式）', tip:'用「先算、再算」兩個算式記錄；分段布題，先問第一步的結果，再接著問第二步。可搭配學扶教材 NC-2-8-1。'},
+    'NC-2-6-1':{name:'理解乘法的意義，並用乘法算式記錄連加活動的結果', tip:'用「每份一樣多」的實物連加，再寫成乘法算式（3+3+3+3 寫成 3×4）；說出「幾的幾倍」。可搭配學扶教材 NC-2-6-1。'},
+    'NC-2-6-2':{name:'用乘法解決生活中的問題', tip:'先找出「每一份是多少」和「有幾份」，再列乘法算式；避免把兩個數直接相加。可搭配學扶教材 NC-2-6-2。'},
+    'NC-2-7-1':{name:'理解十十乘法', tip:'用「多一個、少一個」推出不熟的乘法（7×9 比 7×10 少一個 7）；每天短時間練習九九乘法。可搭配學扶教材 NC-2-7-1。'},
+    'RC-2-3-1':{name:'認識乘法交換律', tip:'用排成長方形的點子圖，橫著看是 4×12、直著看是 12×4，總數一樣。可搭配學扶教材 RC-2-3-1。'},
+    'NC-2-8-2':{name:'先乘後加（減）兩步驟問題（不含併式）', hot:true, tip:'孩子常算完「5×9=45」就以為是答案。用分段布題：先問「一共存了多少元」，再問「加上原來的錢共有多少元」，最後回到原題，要求用兩個算式記下「先算、再算」。可搭配學扶教材 NC-2-8-2。'},
+    'NC-2-11-1':{name:'認識用不同個別單位測量同一長度時，其數值不同，並能說明原因', tip:'讓孩子用迴紋針和鉛筆量同一張桌子，比較數量；說出「用來量的東西越長，量出來的數越小」。可搭配學扶教材 NC-2-11-1。'},
+    'NC-2-11-2':{name:'認識長度單位「公分」、「公尺」及其關係，並作實測、估測與計算；公分、公尺單位間的化聚', hot:true, tip:'多做以 1 公分、1 公尺為單位的實測；用米尺看出 1 公尺＝100 公分，練習「2 公尺 2 公分＝202 公分」，並和 22、220 比較。可搭配學扶教材 NC-2-11-2。'},
+    'SC-2-3-1':{name:'用直尺測量給定線段的長度及兩點的距離', hot:true, tip:'先認識相鄰兩個大刻度之間是 1 公分；用沒有 0 刻度的斷尺，從物品的一端開始「數有幾個 1 公分」，不急著要求用減法。可搭配學扶教材 SC-2-3-1。'},
+    'NC-2-12-1':{name:'認識容量並進行容量的直接、間接與個別單位比較', hot:true, tip:'先讓孩子把容器「裝滿」，理解容量是裝滿時的量；用同樣的杯子倒水，杯數越多容量越大。可搭配學扶教材 NC-2-12-1。'},
+    'NC-2-12-2':{name:'認識重量並進行重量的直接、間接與個別單位比較', tip:'實際用天平操作，說出「低下去的那邊比較重」；用積木當個別單位，比較並算出重幾個。可搭配學扶教材 NC-2-12-2。'},
+    'SC-2-4-2':{name:'認識周長，並實測周長', hot:true, tip:'用手指或毛線沿著圖形的邊走一圈，理解周長是一圈的長度；長方形要把 4 個邊都加起來，不要只加標出的兩個邊；和「格子數（面積）」做區分。可搭配學扶教材 SC-2-4-2。'},
+    'NC-2-13-1':{name:'認識鐘面上的刻度結構，並報讀鐘面上的時刻是幾時幾分', hot:true, tip:'先分別報讀分針（結合 5 個一數和 1 個一數）和時針，再一起讀；多撥教具鐘，讓孩子看到 8 時 1 分到 8 時 59 分時針都還沒到 9，避免把 8 時 55 分讀成 9 時 55 分。可搭配學扶教材 NC-2-13-1、2。'},
+    'NC-2-13-2':{name:'認識整點至整點間經過多少時間', hot:true, tip:'只用順時針撥鐘；從開始時刻起，每撥一圈伸出一根手指，數完再看伸出幾根手指，就是經過幾小時。可搭配學扶教材 NC-2-13-1、2。'},
+    'SC-2-1-1':{name:'認識簡單平面圖形的角、頂點與邊', tip:'在圖形上用不同顏色描出邊、點出頂點、畫出角，數的時候做記號避免重複。可搭配學扶教材 SC-2-1-1。'},
+    'SC-2-1-3':{name:'認識平面圖形的內、外部與其周界', tip:'用跳格子、套圈圈等活動體驗「在裡面、在外面、剛好在線上」；數內部的東西時不要把外部的也算進去。可搭配學扶教材 SC-2-1-3。'}
+  };
+  /*/T*/
+  // 孩子看的短名稱（加注音）
+  var KID_NAME={
+    'NC-2-1-1':'1000以內的數','NC-2-1-2':'百位和位值','RC-2-1-1':'比大小符號','NC-2-4-1':'估算','NC-2-5-1':'認識錢幣',
+    'NC-2-2-1':'二位數直式','NC-2-2-2':'三位數直式','RC-2-4-1':'加減互逆','RC-2-1-2':'大小推理','RC-2-2-1':'加法的順序','NC-2-8-1':'加減兩步驟',
+    'NC-2-6-1':'乘法的意義','NC-2-6-2':'乘法應用題','NC-2-7-1':'九九乘法','RC-2-3-1':'乘法交換','NC-2-8-2':'先乘再加減',
+    'NC-2-11-1':'用不同東西量長度','NC-2-11-2':'公分和公尺','SC-2-3-1':'用直尺量長度','NC-2-12-1':'容量','NC-2-12-2':'重量','SC-2-4-2':'周長',
+    'NC-2-13-1':'看時鐘幾點幾分','NC-2-13-2':'經過幾小時','SC-2-1-1':'角、頂點、邊','SC-2-1-3':'內部、外部、周界'
+  };
+
+  D.start({ grade:2, gradeLabel:'二年級', title:'數學勇士大挑戰', homeLabel:'二年級數學樂園', classExample:'二甲', maxDigits:4,
+    areas:AREAS, gen:GEN, plan:PLAN, codes:CODES, kidNames:KID_NAME,
+    notCovered:'本測驗未納入的二年級指標：NC-2-8-3、NC-2-9-1、NC-2-9-2、NC-2-10-1、NC-2-12-3（同 SC-2-5-1）、NC-2-14-1、SC-2-1-2、SC-2-2-1、SC-2-2-2、SC-2-4-1、DC-2-1-1、DC-2-1-2，請另以學扶教材評量。NC-2-3-1 與 RC-2-4-1 相同，以 RC-2-4-1 計。' });
+})();
+</script>
+</body>
+</html>
